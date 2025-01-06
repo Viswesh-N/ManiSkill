@@ -1,5 +1,4 @@
 from typing import Any, Dict
-import copy
 import sapien
 import torch
 import numpy as np
@@ -31,7 +30,9 @@ class HumanoidWalkEnv(BaseEnv):
 
     def __init__(self, *args, **kwargs):
         self.init_robot_pose = sapien.Pose(p=[0.0, 0.0, 0.755])  # Default standing pose
-        self.init_robot_qpos = None  # To be initialized with small noise
+        self.contact_forces = None
+        self.feet_pos = None
+        self.feet_vel = None
         super().__init__(*args, robot_uids="unitree_g1_simplified_legs", **kwargs)
 
     @property
@@ -102,20 +103,26 @@ class HumanoidWalkEnv(BaseEnv):
         - Reward forward progress.
         - Penalize instability or falling.
         """
-        forward_velocity = info["velocity"] * 10.0  # Encourage forward movement
-        stability_bonus = torch.where(info["stability"], 1.0, -1.0)  # Bonus for being upright
-        reward = forward_velocity + stability_bonus
+        # 1. Forward progress reward
+        forward_velocity = info["velocity"]
+        forward_reward = forward_velocity * 10.0
 
-        # Penalize high joint torques (optional for smoother walking)
-        # if "joint_torques" in obs:
-        #     torque_penalty = torch.sum(torch.abs(obs["joint_torques"]), dim=-1) * -0.01
-        #     reward += torque_penalty
+        # 2. Stability reward
+        stability_bonus = torch.where(info["stability"], 1.0, -1.0)
+
+        # 3. Swing height penalty
+        swing_height_error = torch.clamp(self.agent.robot.pose.p[:, 2] - 0.755, 0, 0.1)
+        swing_height_penalty = -torch.sum(swing_height_error)
+
+        # Combine rewards
+        reward = forward_reward + stability_bonus + swing_height_penalty
 
         return reward
-
 
     def compute_normalized_dense_reward(self, obs: Any, action: torch.Tensor, info: Dict):
         """
         Normalize dense reward for training stability.
         """
-        return self.compute_dense_reward(obs, action, info) / 10.0
+        max_forward_velocity = 2.0  # Assume maximum achievable velocity
+        max_reward = max_forward_velocity * 10.0 + 1.0  # Max forward + stability
+        return self.compute_dense_reward(obs, action, info) / max_reward
