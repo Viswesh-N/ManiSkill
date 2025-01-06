@@ -98,24 +98,52 @@ class HumanoidWalkEnv(BaseEnv):
         }
 
     def compute_dense_reward(self, obs: Any, action: torch.Tensor, info: Dict):
-        """
-        Dense reward for walking:
-        - Reward forward progress.
-        - Penalize instability or falling.
-        """
-        # 1. Forward progress reward
-        forward_velocity = info["velocity"]
-        forward_reward = forward_velocity * 10.0
+        
+        reward = torch.zeros(self.num_envs, device=self.device)
 
-        # 2. Stability reward
-        stability_bonus = torch.where(info["stability"], 1.0, -1.0)
+        # Stage 1: Height-Based Reward
+        height = self.agent.robot.pose.p[:, 2]  # Torso height (z-axis)
 
-        # 3. Swing height penalty
-        swing_height_error = torch.clamp(self.agent.robot.pose.p[:, 2] - 0.755, 0, 0.1)
-        swing_height_penalty = -torch.sum(swing_height_error)
+        # Reward for increasing height 
+        target_height = 0.9  # Target height for stable walking
+        height_reward = torch.tanh(height - 0.5) * 5.0  # Encourage height above 0.5
+        height_penalty = torch.where(
+            height > 1.0, (height - 1.0) * -10.0,  # Penalize height too high
+            torch.where(height < 0.5, (0.5 - height) * -10.0, 0.0)  # Penalize height too low
+        )
+        reward += height_reward + height_penalty
 
-        # Combine rewards
-        reward = forward_reward + stability_bonus + swing_height_penalty
+        # Bonus for being within the ideal height range
+        upright_bonus = torch.where((height > 0.75) & (height < target_height), 2.0, 0.0)
+        reward += upright_bonus
+
+        # Stage 2: Forward Velocity Reward
+        forward_velocity = self.agent.robot.get_root_linear_velocity()[:, 0]  # Forward velocity (x-axis)
+
+        # Encourage forward velocity 
+        target_velocity = 1.0  # Target forward velocity
+        velocity_error = torch.abs(forward_velocity - target_velocity)
+        velocity_reward = torch.exp(-velocity_error) * 10.0  # Reward approaches max as error approaches 0
+        reward += velocity_reward
+
+        # Stage 3: Penalize Instability
+        torso_instability_penalty = torch.abs(height - target_height) * -5.0  # Penalize deviations from target height
+        reward += torso_instability_penalty
+
+        # Penalize jerky movements or abrupt changes
+        torso_velocity = torch.norm(self.agent.robot.get_root_linear_velocity(), dim=1)
+        smooth_motion_penalty = -torch.clamp(torso_velocity - 1.0, min=0.0) * 5.0
+        reward += smooth_motion_penalty
+
+        # Stage 4: Penalize Lateral Instability
+        lateral_velocity = torch.abs(self.agent.robot.get_root_linear_velocity()[:, 1])  # Side-to-side motion (y-axis)
+        lateral_penalty = -torch.clamp(lateral_velocity, 0.0, 0.5) * 5.0
+        reward += lateral_penalty
+
+        # Stage 5: Penalize Angular Instability (optional, based on rotation)
+        torso_angular_velocity = torch.norm(self.agent.robot.get_root_angular_velocity(), dim=1)
+        angular_instability_penalty = -torch.clamp(torso_angular_velocity, 0.0, 1.0) * 5.0
+        reward += angular_instability_penalty
 
         return reward
 
@@ -123,6 +151,5 @@ class HumanoidWalkEnv(BaseEnv):
         """
         Normalize dense reward for training stability.
         """
-        max_forward_velocity = 2.0  # Assume maximum achievable velocity
-        max_reward = max_forward_velocity * 10.0 + 1.0  # Max forward + stability
+        max_reward = 25.0
         return self.compute_dense_reward(obs, action, info) / max_reward
