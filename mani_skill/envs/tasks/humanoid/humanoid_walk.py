@@ -103,15 +103,16 @@ class HumanoidWalkEnv(BaseEnv):
         - Penalize instability or falling.
         """
         forward_velocity = info["velocity"] * 10.0  # Encourage forward movement
-        stability_bonus = 1.0 if info["stability"] else -1.0  # Bonus for being upright
+        stability_bonus = torch.where(info["stability"], 1.0, -1.0)  # Bonus for being upright
         reward = forward_velocity + stability_bonus
 
         # Penalize high joint torques (optional for smoother walking)
-        if "joint_torques" in obs:
-            torque_penalty = torch.sum(torch.abs(obs["joint_torques"]), dim=-1) * -0.01
-            reward += torque_penalty
+        # if "joint_torques" in obs:
+        #     torque_penalty = torch.sum(torch.abs(obs["joint_torques"]), dim=-1) * -0.01
+        #     reward += torque_penalty
 
         return reward
+
 
     def compute_normalized_dense_reward(self, obs: Any, action: torch.Tensor, info: Dict):
         """
