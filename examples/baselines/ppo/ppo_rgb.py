@@ -54,7 +54,7 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "PickCube-v1"
     """the id of the environment"""
-    include_state: bool = True
+    include_state: bool = False
     """whether to include state information in observations"""
     total_timesteps: int = 10000000
     """total timesteps of the experiments"""
