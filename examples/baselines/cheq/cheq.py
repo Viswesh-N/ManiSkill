@@ -20,13 +20,9 @@ from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv
 from mani_skill.utils.wrappers.flatten import FlattenActionSpaceWrapper
 from mani_skill.utils.wrappers.record import RecordEpisode
 from mani_skill.utils import gym_utils
-
-##############################################################
-# Arguments
-##############################################################
 @dataclass
 class CHEQArgs:
-    # experiment
+   
     exp_name: Optional[str] = None
     seed: int = 0
     torch_deterministic: bool = True
@@ -34,7 +30,7 @@ class CHEQArgs:
     wandb_project_name: str = "CHEQ"
     wandb_entity: Optional[str] = None
 
-    # environment
+   
     env_id: str = "PickCube-v1"
     num_envs: int = 16
     num_eval_envs: int = 4
@@ -47,7 +43,6 @@ class CHEQArgs:
     render_mode: str = "rgb_array"
     sim_backend: str = "gpu"
 
-    # rollout
     total_timesteps: int = 1_000_000
     evaluate: bool = False
     eval_freq: int = 10_000
@@ -59,12 +54,10 @@ class CHEQArgs:
     save_model: bool = True
     checkpoint: Optional[str] = None
 
-    # replay buffer
     buffer_size: int = 1_000_000
     buffer_device: str = "cuda"
 
-    # training hyperparams
-    gamma: float = 0.99
+    gamma: float = 0.8
     tau: float = 0.005
     policy_lr: float = 3e-4
     q_lr: float = 1e-3
@@ -85,7 +78,7 @@ class CHEQArgs:
     random_target: bool = True
 
     # prior
-    prior_ckpt: Optional[str] = None  # path to .pt containing 'actor' dict (BC)
+    prior_ckpt: Optional[str] = None  
 
     # cheq mixing
     uhigh: float = 0.15
@@ -96,13 +89,8 @@ class CHEQArgs:
 LOG_STD_MAX = 2
 LOG_STD_MIN = -5
 
-##############################################################
-# Actor with Lambda
-##############################################################
 class ActorWithLambda(nn.Module):
-    """
-    RL policy: receives (obs + 1D lambda) -> outputs action distribution.
-    """
+
     def __init__(self, obs_dim_plus_1: int, act_dim: int):
         super().__init__()
         self.fc1 = nn.Linear(obs_dim_plus_1, 256)
@@ -150,10 +138,6 @@ class ActorWithLambda(nn.Module):
 
         eval_act = torch.tanh(mean)*self.action_scale + self.action_bias
         return act, log_prob, eval_act
-
-##############################################################
-# Ensemble Q (Soft Q Networks)
-##############################################################
 class SoftQNetwork(nn.Module):
     def __init__(self, obs_dim_plus_1: int, act_dim: int):
         super().__init__()
@@ -168,14 +152,7 @@ class SoftQNetwork(nn.Module):
         x = F.relu(self.fc2(x))
         x = F.relu(self.fc3(x))
         return self.fc4(x)
-
-##############################################################
-# Prior (BC) Actor
-##############################################################
 class ActorPriorBC(nn.Module):
-    """
-    BC policy that expects only the plain obs (no lambda dimension).
-    """
     def __init__(self, obs_dim: int, act_dim: int):
         super().__init__()
         self.net = nn.Sequential(
@@ -201,14 +178,10 @@ class ActorPriorBC(nn.Module):
         return self.net(obs)
 
     def get_action(self, obs, deterministic=True):
-        # We'll do a simple tanh-squash for BC
         x = self.forward(obs)
         act = torch.tanh(x)*self.action_scale + self.action_bias
         return act, None, act
 
-##############################################################
-# Replay Buffer with Bernoulli Mask
-##############################################################
 class ReplayBufferSample:
     def __init__(self, obs, next_obs, actions, rewards, dones, masks):
         self.obs = obs
@@ -266,24 +239,15 @@ class BernoulliMaskReplayBuffer:
             masks=self.masks[idxs]
         )
 
-##############################################################
-# Utilities: injecting lambda, computing dynamic lambda
-##############################################################
 def inject_weight_into_state(obs: torch.Tensor, lam: torch.Tensor) -> torch.Tensor:
-    """
-    lam is shape [N, 1], obs is shape [N, obs_dim].
-    We cat them -> shape [N, obs_dim+1].
-    """
+    
     return torch.cat([obs, lam], dim=1)
 
 def remove_lambda_dimension(obs_aug: torch.Tensor) -> torch.Tensor:
     return obs_aug[..., :-1]
 
 def get_lambda(u: torch.Tensor, args: CHEQArgs):
-    """
-    Map uncertainty u to a mixture weight lambda in [lam_low, lam_high].
-    u: shape [N]. Return shape [N,1].
-    """
+    
     lam_vals = torch.empty_like(u)
     lower_mask = (u <= args.ulow)
     upper_mask = (u >= args.uhigh)
@@ -298,11 +262,7 @@ def get_lambda(u: torch.Tensor, args: CHEQArgs):
 
     return lam_vals.unsqueeze(1)  # shape [N,1]
 
-##############################################################
-# Main Training Loop
-##############################################################
 def train_cheq(args: CHEQArgs):
-    # Seeding
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -314,7 +274,6 @@ def train_cheq(args: CHEQArgs):
     run_name = args.exp_name or "cheq_experiment"
     run_name = f"{args.env_id}__{run_name}__{args.seed}__{int(time.time())}"
 
-    # Create vectorized train / eval env
     env_kwargs = dict(
         obs_mode=args.obs_mode,
         render_mode=args.render_mode,
@@ -338,12 +297,10 @@ def train_cheq(args: CHEQArgs):
         **env_kwargs
     )
 
-    # Flatten
     if isinstance(train_env.action_space, gym.spaces.Dict):
         train_env = FlattenActionSpaceWrapper(train_env)
         eval_env  = FlattenActionSpaceWrapper(eval_env)
 
-    # Recording
     if args.capture_video or args.save_trajectory:
         video_dir = f"runs/{run_name}/videos"
         if args.evaluate and args.checkpoint is not None:
@@ -365,7 +322,6 @@ def train_cheq(args: CHEQArgs):
     obs_dim_plus_1   = original_obs_dim + 1
     act_dim          = np.prod(train_env.single_action_space.shape)
 
-    # RL actor & ensemble Q
     actor = ActorWithLambda(obs_dim_plus_1, act_dim).to(device)
     actor.configure_action_scale(train_env.single_action_space)
 
@@ -386,7 +342,6 @@ def train_cheq(args: CHEQArgs):
         alpha = args.alpha
         log_alpha = None
 
-    # Load BC prior if provided
     prior_actor = None
     if args.prior_ckpt:
         prior_actor = ActorPriorBC(original_obs_dim, act_dim).to(device)
@@ -401,7 +356,6 @@ def train_cheq(args: CHEQArgs):
         else:
             print(f"[CHEQ] No 'actor' key found in {args.prior_ckpt}")
 
-    # Replay buffer
     rb = BernoulliMaskReplayBuffer(
         buffer_size=args.buffer_size,
         obs_dim_plus_1=obs_dim_plus_1,
@@ -417,7 +371,6 @@ def train_cheq(args: CHEQArgs):
         qs_cat = torch.cat(qs, dim=1)
         return qs_cat.std(dim=1)  # shape [N]
 
-    # Evaluation
     def do_evaluation(step_num: int):
         actor.eval()
         if prior_actor is not None:
@@ -448,7 +401,7 @@ def train_cheq(args: CHEQArgs):
             eval_obs = next_obs
 
         mean_ret = ret.mean().item()
-        # Log to TB & wandb
+
         if writer:
             writer.add_scalar("eval/return", mean_ret, step_num)
         if args.track:
@@ -459,7 +412,6 @@ def train_cheq(args: CHEQArgs):
             prior_actor.train()
         return mean_ret
 
-    # Tracking
     if args.track:
         wandb.init(
             project=args.wandb_project_name,
@@ -474,11 +426,9 @@ def train_cheq(args: CHEQArgs):
     start_time = time.time()
     learning_starts_actor = args.learning_starts_actor or args.learning_starts
 
-    # Main Loop
     for step in tqdm.trange(args.total_timesteps // args.num_envs):
         global_step += args.num_envs
 
-        # 1) RL actor or random
         if global_step >= args.learning_starts or not args.start_random:
             lam_ones = torch.ones((args.num_envs, 1), device=device)
             obs_aug_input = torch.cat([obs, lam_ones], dim=1)
@@ -488,14 +438,13 @@ def train_cheq(args: CHEQArgs):
             rand_action_np = train_env.action_space.sample()  # shape (num_envs, act_dim)
             pi_action = torch.tensor(rand_action_np, dtype=torch.float32, device=device)
 
-        # 2) BC prior
+
         if prior_actor is not None:
             with torch.no_grad():
                 bc_action, _, _ = prior_actor.get_action(obs, deterministic=True)
         else:
             bc_action = torch.zeros_like(pi_action, device=device)
 
-        # 3) Uncertainty => lam
         if global_step < args.learning_starts:
             lam_vec = torch.zeros((args.num_envs, 1), device=device)  # pure BC at start
         else:
@@ -503,13 +452,10 @@ def train_cheq(args: CHEQArgs):
                 stdvals = compute_uncertainty(obs_aug_input, pi_action)
                 lam_vec = get_lambda(stdvals, args)
 
-        # 4) Final action mix
         final_action = lam_vec * pi_action + (1 - lam_vec) * bc_action
 
-        # 5) Step environment
         next_obs, reward, done, trunc, infos = train_env.step(final_action)
 
-        # 6) Store transitions
         obs_aug_store     = torch.cat([obs, lam_vec], dim=1)
         next_obs_aug_store= torch.cat([next_obs, lam_vec], dim=1)
 
@@ -524,25 +470,21 @@ def train_cheq(args: CHEQArgs):
 
         obs = next_obs
 
-        # -- Logging immediate rollout info --
         mean_rew = reward.mean().item()
         lam_mean = lam_vec.mean().item()
         if args.track:
             wandb.log({"rollout/mean_reward": mean_rew,
                        "rollout/lambda_mean":   lam_mean},
                       step=global_step)
-        # We'll only do TB logging occasionally:
         if writer and (global_step % args.log_freq == 0):
             writer.add_scalar("rollout/mean_reward", mean_rew, global_step)
             writer.add_scalar("rollout/lambda_mean", lam_mean, global_step)
             writer.add_scalar("time/elapsed", time.time() - start_time, global_step)
 
-        # 7) Training
         if global_step >= args.learning_starts:
             for _ in range(args.grad_steps_per_iteration):
                 batch = rb.sample(args.batch_size)
 
-                # Q update
                 with torch.no_grad():
                     next_pi, next_logp, _ = actor.get_action(batch.next_obs)
                     q_tgts = [qf_t(batch.next_obs, next_pi) for qf_t in qfs_target]
@@ -565,20 +507,19 @@ def train_cheq(args: CHEQArgs):
                 q_loss_total.backward()
                 q_optimizer.step()
 
-                # Optionally log Q-loss each step
+
                 q_loss_val = q_loss_total.item()
                 if args.track:
                     wandb.log({"train/q_loss": q_loss_val}, step=global_step)
                 if writer and (global_step % args.log_freq == 0):
                     writer.add_scalar("train/q_loss", q_loss_val, global_step)
 
-                # Polyak update
+
                 if global_step % args.target_network_frequency == 0:
                     for q_main, q_targ in zip(qfs, qfs_target):
                         for p_m, p_t in zip(q_main.parameters(), q_targ.parameters()):
                             p_t.data.copy_(args.tau*p_m.data + (1 - args.tau)*p_t.data)
 
-            # Actor update
             if global_step >= learning_starts_actor and (global_step % args.policy_frequency == 0):
                 data2 = rb.sample(args.batch_size)
                 pi2, logp2, _ = actor.get_action(data2.obs)
@@ -592,14 +533,13 @@ def train_cheq(args: CHEQArgs):
                 policy_loss.backward()
                 actor_optimizer.step()
 
-                # Log policy loss
                 policy_loss_val = policy_loss.item()
                 if args.track:
                     wandb.log({"train/policy_loss": policy_loss_val}, step=global_step)
                 if writer and (global_step % args.log_freq == 0):
                     writer.add_scalar("train/policy_loss", policy_loss_val, global_step)
 
-                # alpha autotune
+
                 if args.autotune:
                     with torch.no_grad():
                         _, logp3, _ = actor.get_action(data2.obs)
@@ -609,13 +549,11 @@ def train_cheq(args: CHEQArgs):
                     a_optimizer.step()
                     alpha = log_alpha.exp().item()
 
-                    # Log alpha
                     if args.track:
                         wandb.log({"train/alpha": alpha}, step=global_step)
                     if writer and (global_step % args.log_freq == 0):
                         writer.add_scalar("train/alpha", alpha, global_step)
 
-        # Evaluate
         if (not args.evaluate) and (global_step % args.eval_freq == 0):
             eval_ret = do_evaluation(global_step)
             print(f"[Eval @ Step {global_step}] Return: {eval_ret:.3f}")
@@ -623,7 +561,6 @@ def train_cheq(args: CHEQArgs):
         if global_step >= args.total_timesteps:
             break
 
-    # Save final
     if not args.evaluate and args.save_model:
         os.makedirs(f"runs/{run_name}/checkpoints", exist_ok=True)
         ckpt_path = f"runs/{run_name}/checkpoints/cheq_final.pt"
