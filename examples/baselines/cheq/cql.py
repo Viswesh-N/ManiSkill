@@ -328,7 +328,7 @@ if __name__ == "__main__":
             trajectory_name="trajectory",
             max_steps_per_video=args.num_eval_steps,
             video_fps=30,
-            wandb_video_freq=args.wandb_video_freq // args.eval_freq if args.eval_freq > 0 else 0
+            # wandb_video_freq=args.wandb_video_freq // args.eval_freq if args.eval_freq > 0 else 0
         )
 
     envs = ManiSkillVectorEnv(envs, args.num_envs, ignore_terminations=not args.partial_reset, record_metrics=True)
