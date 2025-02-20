@@ -3,9 +3,9 @@
 SAC Training with Conservative Q-Learning (CQL) and Replay Buffer Saving for Offline Data Collection
 
 This script trains a SAC (Soft Actor-Critic) agent with integrated CQL modifications.
-It collects transitions (offline data) in a replay buffer and, if provided, prepopulates
-the buffer from a demonstration (h5 file). After training, the replay buffer is saved
-as an HDF5 file for later use in offline RL.
+It collects transitions (offline data) in a replay buffer and (optionally) prepopulates
+the buffer from a demonstration HDF5 file. At the end of training, the replay buffer is saved
+as an HDF5 file, which can be used later as offline data for a pure offline RL run.
 """
 
 from collections import defaultdict
@@ -55,6 +55,9 @@ class Args:
     checkpoint: Optional[str] = None
     log_freq: int = 1000
 
+    # New attribute for saving model checkpoints
+    save_model_dir: Optional[str] = "runs"
+
     # Environment specific arguments
     env_id: str = "PickCube-v1"
     env_vectorization: str = "gpu"
@@ -88,23 +91,22 @@ class Args:
     utd: float = 0.5
     bootstrap_at_done: str = "always"
 
-    # CQL-specific hyperparameters (for the conservative penalty)
+    # CQL-specific hyperparameters (CQL(H) variant using uniform sampling)
     cql_alpha: float = 1.0      # Weight for the conservative penalty term
-    cql_num_random: int = 10    # Number of random actions to sample per state
+    cql_num_random: int = 10    # Number of random actions sampled per state
 
-    # Optional: demonstration file path to prepopulate the replay buffer
+    # Optional demonstration file to prepopulate the replay buffer
     demo_path: Optional[str] = None
 
     # Path to save the offline dataset (replay buffer)
     save_buffer_path: str = "/content/replay_buffer.h5"
 
-    # to be filled in runtime:
+    # to be filled in runtime
     grad_steps_per_iteration: int = 0
     steps_per_env: int = 0
 
-
 # ---------------------------------------------------------------------------
-# Replay Buffer and Dataset Saving
+# Replay Buffer and Saving Utilities
 # ---------------------------------------------------------------------------
 @dataclass
 class ReplayBufferSample:
@@ -113,7 +115,6 @@ class ReplayBufferSample:
     actions: torch.Tensor
     rewards: torch.Tensor
     dones: torch.Tensor
-
 
 class ReplayBuffer:
     def __init__(self, env, num_envs: int, buffer_size: int, storage_device: torch.device, sample_device: torch.device):
@@ -144,7 +145,6 @@ class ReplayBuffer:
         self.actions[self.pos] = action
         self.rewards[self.pos] = reward
         self.dones[self.pos] = done
-
         self.pos += 1
         if self.pos == self.per_env_buffer_size:
             self.full = True
@@ -164,13 +164,7 @@ class ReplayBuffer:
             dones=self.dones[batch_inds, env_inds].to(self.sample_device)
         )
 
-
 def save_replay_buffer(rb: ReplayBuffer, filepath: str):
-    """
-    Save the replay buffer as an HDF5 file.
-    The offline dataset is saved with keys: "obs", "next_obs", "actions", "rewards", "dones".
-    The first two dimensions (buffer index and environment index) are flattened.
-    """
     num_samples = rb.per_env_buffer_size if rb.full else rb.pos
     obs_np = rb.obs[:num_samples].cpu().numpy().reshape(-1, *rb.obs.shape[2:])
     next_obs_np = rb.next_obs[:num_samples].cpu().numpy().reshape(-1, *rb.next_obs.shape[2:])
@@ -185,19 +179,13 @@ def save_replay_buffer(rb: ReplayBuffer, filepath: str):
         f.create_dataset("rewards", data=rewards_np)
         f.create_dataset("dones", data=dones_np)
 
-
 def populate_replay_buffer_from_demo(rb: ReplayBuffer, demo_path: str, device: torch.device):
-    """
-    Load demonstration data from an HDF5 file and add transitions into the replay buffer.
-    Assumes the HDF5 file contains datasets: "obs", "actions", "rewards", "dones".
-    """
     print(f"Loading demo data from {demo_path}")
     with h5py.File(demo_path, "r") as demo_file:
         obs_data = demo_file["obs"][:]
         actions_data = demo_file["actions"][:]
         rewards_data = demo_file["rewards"][:]
         dones_data = demo_file["dones"][:]
-        # Compute next_obs by shifting (or load "next_obs" if available)
         next_obs_data = np.concatenate([obs_data[1:], obs_data[-1:]], axis=0)
     num_samples = obs_data.shape[0]
     print(f"Populating replay buffer with {num_samples} demo transitions.")
@@ -209,7 +197,6 @@ def populate_replay_buffer_from_demo(rb: ReplayBuffer, demo_path: str, device: t
             torch.tensor(rewards_data[i], dtype=torch.float32, device=device),
             torch.tensor(dones_data[i], dtype=torch.float32, device=device)
         )
-
 
 # ---------------------------------------------------------------------------
 # Neural Network Modules: Q-Network and Actor
@@ -231,7 +218,6 @@ class SoftQNetwork(nn.Module):
     def forward(self, x, a):
         x = torch.cat([x, a], dim=1)
         return self.net(x)
-
 
 LOG_STD_MAX = 2
 LOG_STD_MIN = -5
@@ -285,7 +271,6 @@ class Actor(nn.Module):
         self.action_bias = self.action_bias.to(device)
         return super().to(device)
 
-
 class Logger:
     def __init__(self, log_wandb=False, tensorboard: Optional[SummaryWriter] = None) -> None:
         self.writer = tensorboard
@@ -300,9 +285,8 @@ class Logger:
     def close(self):
         self.writer.close()
 
-
 # ---------------------------------------------------------------------------
-# Main Training Loop
+# Main Training Loop (CQL(H) Variant using Uniform Sampling)
 # ---------------------------------------------------------------------------
 if __name__ == "__main__":
     args = tyro.cli(Args)
@@ -409,7 +393,6 @@ if __name__ == "__main__":
         sample_device=device
     )
 
-    # If a demo file is provided, prepopulate the replay buffer with offline data.
     if args.demo_path is not None:
         populate_replay_buffer_from_demo(rb, args.demo_path, device)
     else:
@@ -488,7 +471,7 @@ if __name__ == "__main__":
                 real_next_obs[need_final_obs] = infos["final_observation"][need_final_obs]
                 for k, v in final_info["episode"].items():
                     logger.add_scalar(f"train/{k}", v[done_mask].float().mean(), global_step)
-            # Offline Data Collection: each transition is added to the replay buffer.
+            # Offline Data Collection: store transitions (s, a, r, s') in the replay buffer.
             rb.add(obs, real_next_obs, actions, rewards, stop_bootstrap)
             obs = next_obs
         rollout_time = time.perf_counter() - rollout_time
@@ -515,14 +498,13 @@ if __name__ == "__main__":
             qf2_loss = F.mse_loss(qf2_a_values, next_q_value)
             qf_loss = qf1_loss + qf2_loss
 
-            # --- CQL Conservative Penalty ---
+            # --- CQL Conservative Penalty (Uniform Sampling) ---
             bs = data.obs.shape[0]
             random_actions = torch.rand(bs, args.cql_num_random, action_dim, device=device) * (action_high - action_low) + action_low
-            obs_expanded = data.obs.unsqueeze(1).expand(bs, args.cql_num_random, -1).reshape(bs, args.cql_num_random, data.obs.shape[1])
-            random_actions_flat = random_actions.reshape(bs, args.cql_num_random, action_dim)
-            # Reshape for processing:
-            qf1_rand = qf1(obs_expanded.reshape(-1, data.obs.shape[1]), random_actions_flat.reshape(-1, action_dim)).view(bs, args.cql_num_random)
-            qf2_rand = qf2(obs_expanded.reshape(-1, data.obs.shape[1]), random_actions_flat.reshape(-1, action_dim)).view(bs, args.cql_num_random)
+            obs_expanded = data.obs.unsqueeze(1).expand(bs, args.cql_num_random, -1).reshape(-1, data.obs.shape[1])
+            random_actions_flat = random_actions.reshape(-1, action_dim)
+            qf1_rand = qf1(obs_expanded, random_actions_flat).view(bs, args.cql_num_random)
+            qf2_rand = qf2(obs_expanded, random_actions_flat).view(bs, args.cql_num_random)
             qf1_rand_logsumexp = torch.logsumexp(qf1_rand, dim=1).mean()
             qf2_rand_logsumexp = torch.logsumexp(qf2_rand, dim=1).mean()
             qf1_data_mean = qf1(data.obs, data.actions).mean()
