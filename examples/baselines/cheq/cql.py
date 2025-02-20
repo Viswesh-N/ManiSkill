@@ -3,12 +3,12 @@
 SAC Training with Conservative Q-Learning (CQL) and Replay Buffer Saving for Offline Data Collection
 
 This script trains a SAC (Soft Actor-Critic) agent with integrated CQL modifications.
-During training, the agent collects transitions (offline data) in a replay buffer.
-After training, the replay buffer is saved as an HDF5 file (offline dataset) that can
-later be used by a separate CQL run.
+It collects transitions (offline data) in a replay buffer and, if provided, prepopulates
+the buffer from a demonstration (h5 file). After training, the replay buffer is saved
+as an HDF5 file for later use in offline RL.
 """
 
-from collections import defaultdict, OrderedDict
+from collections import defaultdict
 from dataclasses import dataclass
 import os
 import random
@@ -47,13 +47,13 @@ class Args:
     track: bool = False
     wandb_project_name: str = "ManiSkill"
     wandb_entity: Optional[str] = None
-    wandb_group: str = "CQL_SAC"
+    wandb_group: str = "SAC"
     capture_video: bool = True
     save_trajectory: bool = False
     save_model: bool = True
     evaluate: bool = False
     checkpoint: Optional[str] = None
-    log_freq: int = 1_000
+    log_freq: int = 1000
 
     # Environment specific arguments
     env_id: str = "PickCube-v1"
@@ -71,13 +71,13 @@ class Args:
     control_mode: Optional[str] = "pd_joint_delta_pos"
 
     # Algorithm specific arguments
-    total_timesteps: int = 1_000_000
-    buffer_size: int = 1_000_000
+    total_timesteps: int = 1000000
+    buffer_size: int = 1000000
     buffer_device: str = "cuda"
     gamma: float = 0.8
     tau: float = 0.01
     batch_size: int = 1024
-    learning_starts: int = 4_000
+    learning_starts: int = 4000
     policy_lr: float = 3e-4
     q_lr: float = 3e-4
     policy_frequency: int = 1
@@ -92,19 +92,19 @@ class Args:
     cql_alpha: float = 1.0      # Weight for the conservative penalty term
     cql_num_random: int = 10    # Number of random actions to sample per state
 
-    # Optional demonstration file to prepopulate the replay buffer.
+    # Optional: demonstration file path to prepopulate the replay buffer
     demo_path: Optional[str] = None
 
-    # Path where to save the collected replay buffer (offline dataset)
+    # Path to save the offline dataset (replay buffer)
     save_buffer_path: str = "/content/replay_buffer.h5"
 
-    # to be filled in runtime
+    # to be filled in runtime:
     grad_steps_per_iteration: int = 0
     steps_per_env: int = 0
 
 
 # ---------------------------------------------------------------------------
-# Replay Buffer and Saving Utilities
+# Replay Buffer and Dataset Saving
 # ---------------------------------------------------------------------------
 @dataclass
 class ReplayBufferSample:
@@ -133,7 +133,6 @@ class ReplayBuffer:
         self.values = torch.zeros((self.per_env_buffer_size, self.num_envs), device=storage_device)
 
     def add(self, obs: torch.Tensor, next_obs: torch.Tensor, action: torch.Tensor, reward: torch.Tensor, done: torch.Tensor):
-        # This method collects offline data into the replay buffer.
         if self.storage_device == torch.device("cpu"):
             obs = obs.cpu()
             next_obs = next_obs.cpu()
@@ -152,7 +151,6 @@ class ReplayBuffer:
             self.pos = 0
 
     def sample(self, batch_size: int) -> ReplayBufferSample:
-        # Offline data is leveraged during training: batches are sampled from the replay buffer.
         if self.full:
             batch_inds = torch.randint(0, self.per_env_buffer_size, (batch_size,))
         else:
@@ -169,9 +167,9 @@ class ReplayBuffer:
 
 def save_replay_buffer(rb: ReplayBuffer, filepath: str):
     """
-    Save the replay buffer data into an HDF5 file.
+    Save the replay buffer as an HDF5 file.
     The offline dataset is saved with keys: "obs", "next_obs", "actions", "rewards", "dones".
-    The first two dimensions (buffer index and env index) are flattened.
+    The first two dimensions (buffer index and environment index) are flattened.
     """
     num_samples = rb.per_env_buffer_size if rb.full else rb.pos
     obs_np = rb.obs[:num_samples].cpu().numpy().reshape(-1, *rb.obs.shape[2:])
@@ -190,15 +188,16 @@ def save_replay_buffer(rb: ReplayBuffer, filepath: str):
 
 def populate_replay_buffer_from_demo(rb: ReplayBuffer, demo_path: str, device: torch.device):
     """
-    Optionally prepopulate the replay buffer with demonstration data.
-    Assumes the HDF5 file has datasets: "obs", "actions", "rewards", "dones".
+    Load demonstration data from an HDF5 file and add transitions into the replay buffer.
+    Assumes the HDF5 file contains datasets: "obs", "actions", "rewards", "dones".
     """
     print(f"Loading demo data from {demo_path}")
     with h5py.File(demo_path, "r") as demo_file:
-        obs_data = demo_file["obs"][:]        
+        obs_data = demo_file["obs"][:]
         actions_data = demo_file["actions"][:]
         rewards_data = demo_file["rewards"][:]
         dones_data = demo_file["dones"][:]
+        # Compute next_obs by shifting (or load "next_obs" if available)
         next_obs_data = np.concatenate([obs_data[1:], obs_data[-1:]], axis=0)
     num_samples = obs_data.shape[0]
     print(f"Populating replay buffer with {num_samples} demo transitions.")
@@ -240,18 +239,16 @@ LOG_STD_MIN = -5
 class Actor(nn.Module):
     def __init__(self, env):
         super().__init__()
-        obs_dim = int(np.prod(env.single_observation_space.shape))
-        act_dim = int(np.prod(env.single_action_space.shape))
         self.backbone = nn.Sequential(
-            nn.Linear(obs_dim, 256),
+            nn.Linear(np.prod(env.single_observation_space.shape), 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
         )
-        self.fc_mean = nn.Linear(256, act_dim)
-        self.fc_logstd = nn.Linear(256, act_dim)
+        self.fc_mean = nn.Linear(256, np.prod(env.single_action_space.shape))
+        self.fc_logstd = nn.Linear(256, np.prod(env.single_action_space.shape))
         h, l = env.single_action_space.high, env.single_action_space.low
         self.register_buffer("action_scale", torch.tensor((h - l) / 2.0, dtype=torch.float32))
         self.register_buffer("action_bias", torch.tensor((h + l) / 2.0, dtype=torch.float32))
@@ -313,11 +310,11 @@ if __name__ == "__main__":
     args.steps_per_env = args.training_freq // args.num_envs
     if args.exp_name is None:
         args.exp_name = os.path.basename(__file__)[:-len(".py")]
-        run_name = f"{args.env_id}__{args.exp_name}__{args.robot}__{args.seed}__{int(time.time())}"
+        run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
     else:
         run_name = args.exp_name
 
-    # Set seeds for reproducibility.
+    # Seeding
     random.seed(args.seed)
     np.random.seed(args.seed)
     torch.manual_seed(args.seed)
@@ -326,13 +323,13 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     ####### Environment Setup #######
-    env_kwargs = dict(obs_mode="state", render_mode="rgb_array", sim_backend="gpu", robot_uids=args.robot)
+    env_kwargs = dict(obs_mode="state", render_mode="rgb_array", sim_backend="gpu")
     if args.control_mode is not None:
         env_kwargs["control_mode"] = args.control_mode
     envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1,
                     reconfiguration_freq=args.reconfiguration_freq, **env_kwargs)
     eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs,
-                         reconfiguration_freq=args.eval_reconfiguration_freq, human_render_camera_configs=dict(shader_pack="default"), **env_kwargs)
+                         reconfiguration_freq=args.eval_reconfiguration_freq, **env_kwargs)
     if isinstance(envs.action_space, gym.spaces.Dict):
         envs = FlattenActionSpaceWrapper(envs)
         eval_envs = FlattenActionSpaceWrapper(eval_envs)
@@ -412,7 +409,7 @@ if __name__ == "__main__":
         sample_device=device
     )
 
-    # Offline Data Prepopulation: If a demo file is provided, load it into the replay buffer.
+    # If a demo file is provided, prepopulate the replay buffer with offline data.
     if args.demo_path is not None:
         populate_replay_buffer_from_demo(rb, args.demo_path, device)
     else:
@@ -427,7 +424,7 @@ if __name__ == "__main__":
     pbar = tqdm(total=args.total_timesteps, desc="Training SAC")
     cumulative_times = defaultdict(float)
 
-    # Precompute action bounds for CQL random action sampling.
+    # Precompute action bounds for CQL random sampling.
     action_low = torch.tensor(envs.single_action_space.low, device=device).float()
     action_high = torch.tensor(envs.single_action_space.high, device=device).float()
     action_dim = envs.single_action_space.shape[0]
@@ -491,7 +488,7 @@ if __name__ == "__main__":
                 real_next_obs[need_final_obs] = infos["final_observation"][need_final_obs]
                 for k, v in final_info["episode"].items():
                     logger.add_scalar(f"train/{k}", v[done_mask].float().mean(), global_step)
-            # <-- Offline Data Collection: each transition is added to the replay buffer.
+            # Offline Data Collection: each transition is added to the replay buffer.
             rb.add(obs, real_next_obs, actions, rewards, stop_bootstrap)
             obs = next_obs
         rollout_time = time.perf_counter() - rollout_time
@@ -504,7 +501,7 @@ if __name__ == "__main__":
         learning_has_started = True
         for _ in range(args.grad_steps_per_iteration):
             global_update += 1
-            # <-- Offline Data Sampling: A batch is sampled from the replay buffer.
+            # Offline Data Sampling: sample a batch from the replay buffer.
             data = rb.sample(args.batch_size)
             with torch.no_grad():
                 next_state_actions, next_state_log_pi, _ = actor.get_action(data.next_obs)
@@ -521,10 +518,11 @@ if __name__ == "__main__":
             # --- CQL Conservative Penalty ---
             bs = data.obs.shape[0]
             random_actions = torch.rand(bs, args.cql_num_random, action_dim, device=device) * (action_high - action_low) + action_low
-            obs_expanded = data.obs.unsqueeze(1).expand(bs, args.cql_num_random, -1).reshape(-1, data.obs.shape[1])
-            random_actions_flat = random_actions.reshape(-1, action_dim)
-            qf1_rand = qf1(obs_expanded, random_actions_flat).view(bs, args.cql_num_random)
-            qf2_rand = qf2(obs_expanded, random_actions_flat).view(bs, args.cql_num_random)
+            obs_expanded = data.obs.unsqueeze(1).expand(bs, args.cql_num_random, -1).reshape(bs, args.cql_num_random, data.obs.shape[1])
+            random_actions_flat = random_actions.reshape(bs, args.cql_num_random, action_dim)
+            # Reshape for processing:
+            qf1_rand = qf1(obs_expanded.reshape(-1, data.obs.shape[1]), random_actions_flat.reshape(-1, action_dim)).view(bs, args.cql_num_random)
+            qf2_rand = qf2(obs_expanded.reshape(-1, data.obs.shape[1]), random_actions_flat.reshape(-1, action_dim)).view(bs, args.cql_num_random)
             qf1_rand_logsumexp = torch.logsumexp(qf1_rand, dim=1).mean()
             qf2_rand_logsumexp = torch.logsumexp(qf2_rand, dim=1).mean()
             qf1_data_mean = qf1(data.obs, data.actions).mean()
@@ -563,7 +561,7 @@ if __name__ == "__main__":
         update_time = time.perf_counter() - update_time
         cumulative_times["update_time"] += update_time
 
-        if (global_step - args.learning_starts) // args.log_freq < global_step // args.log_freq:
+        if (global_step - args.training_freq) // args.log_freq < global_step // args.log_freq:
             logger.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
             logger.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
             logger.add_scalar("losses/qf_loss", qf_loss.item() / 2.0, global_step)
@@ -590,6 +588,6 @@ if __name__ == "__main__":
         writer.close()
     envs.close()
 
-    # ----- Save the Replay Buffer (Offline Data) as an HDF5 Dataset -----
+    # ----- Save Replay Buffer (Offline Data) -----
     save_replay_buffer(rb, args.save_buffer_path)
     print(f"Replay buffer saved to {args.save_buffer_path}")
