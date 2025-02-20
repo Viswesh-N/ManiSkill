@@ -1,3 +1,12 @@
+#!/usr/bin/env python
+"""
+SAC Training with Replay Buffer Saving for Offline Data Collection
+
+This script trains a SAC (Soft Actor-Critic) agent with integrated Conservative Q-Learning (CQL)
+logic. It collects data (offline data) in a replay buffer, uses that offline dataset in its training
+updates, and finally saves the replay buffer as an HDF5 file for later use by an offline CQL method.
+"""
+
 from collections import defaultdict
 from dataclasses import dataclass
 import os
@@ -21,34 +30,29 @@ import torch.nn.functional as F
 import torch.optim as optim
 from torch.utils.tensorboard import SummaryWriter
 import tyro
+import h5py
 
 import mani_skill.envs
 
-###############################################################################
-# 1. Arguments & Replay Buffer
-###############################################################################
-
+# ---------------------------------------------------------------------------
+# Argument Definition
+# ---------------------------------------------------------------------------
 @dataclass
 class Args:
-    # Experiment and logging details
     exp_name: Optional[str] = None
-    robot: str = "panda"
-    control_mode: str = "pd_joint_delta_pos"
     seed: int = 1
     torch_deterministic: bool = True
     cuda: bool = True
     track: bool = False
-    wandb_project_name: str = "maniskill_experiments"
-    wandb_entity: str = "ucsd_erl"  # Set this to your valid wandb entity if available.
-    wandb_group: str = "CQL"
+    wandb_project_name: str = "ManiSkill"
+    wandb_entity: Optional[str] = None
+    wandb_group: str = "CQL_SAC"
     capture_video: bool = True
     save_trajectory: bool = False
     save_model: bool = True
     evaluate: bool = False
     checkpoint: Optional[str] = None
     log_freq: int = 1_000
-    wandb_video_freq: int = 0
-    save_model_dir: Optional[str] = "runs"
 
     # Environment specific arguments
     env_id: str = "PickCube-v1"
@@ -63,6 +67,7 @@ class Args:
     eval_reconfiguration_freq: Optional[int] = 1
     eval_freq: int = 25
     save_train_video_freq: Optional[int] = None
+    control_mode: Optional[str] = "pd_joint_delta_pos"
 
     # Algorithm specific arguments
     total_timesteps: int = 1_000_000
@@ -76,33 +81,30 @@ class Args:
     q_lr: float = 3e-4
     policy_frequency: int = 1
     target_network_frequency: int = 1
-    alpha: float = 0.2       # SAC entropy coefficient
-    autotune: bool = True    # Automatic tuning of SAC alpha
+    alpha: float = 0.2         # SAC entropy coefficient
+    autotune: bool = True
     training_freq: int = 64
     utd: float = 0.5
     bootstrap_at_done: str = "always"
-    
-    # CQL-Specific Hyperparameters
-    cql_alpha: float = 1.0
-    """
-    Weight of the CQL penalty term: 
-    alpha * (logsumexp(Q) - Q(s, a_data)).
-    """
-    cql_n_actions: int = 10
-    """
-    Number of random actions to sample per state for the log-sum-exp approximation.
-    """
-    cql_autotune: bool = False
-    cql_target_action_gap: float = 0.0
-    """
-    When auto-tuning the CQL penalty via a Lagrangian, we try to enforce:
-        E[logsumexp(Q) - Q(s, a_data)] >= cql_target_action_gap
-    """
 
-    # To be computed at runtime
+    # CQL-specific hyperparameters (for the conservative penalty)
+    cql_alpha: float = 1.0      # Weight for the conservative penalty
+    cql_num_random: int = 10    # Number of random actions to sample per state
+
+    # Optional demonstration file to prepopulate the replay buffer
+    demo_path: Optional[str] = None
+
+    # Path where to save the collected replay buffer (offline dataset)
+    save_buffer_path: str = "/content/replay_buffer.h5"
+
+    # to be filled in runtime
     grad_steps_per_iteration: int = 0
     steps_per_env: int = 0
 
+
+# ---------------------------------------------------------------------------
+# Replay Buffer and Saving Utilities
+# ---------------------------------------------------------------------------
 @dataclass
 class ReplayBufferSample:
     obs: torch.Tensor
@@ -110,6 +112,7 @@ class ReplayBufferSample:
     actions: torch.Tensor
     rewards: torch.Tensor
     dones: torch.Tensor
+
 
 class ReplayBuffer:
     def __init__(self, env, num_envs: int, buffer_size: int, storage_device: torch.device, sample_device: torch.device):
@@ -120,24 +123,22 @@ class ReplayBuffer:
         self.storage_device = storage_device
         self.sample_device = sample_device
         self.per_env_buffer_size = buffer_size // num_envs
-
-        obs_shape = env.single_observation_space.shape
-        act_shape = env.single_action_space.shape
-
-        self.obs = torch.zeros((self.per_env_buffer_size, self.num_envs) + obs_shape).to(storage_device)
-        self.next_obs = torch.zeros((self.per_env_buffer_size, self.num_envs) + obs_shape).to(storage_device)
-        self.actions = torch.zeros((self.per_env_buffer_size, self.num_envs) + act_shape).to(storage_device)
-        self.rewards = torch.zeros((self.per_env_buffer_size, self.num_envs)).to(storage_device)
-        self.dones = torch.zeros((self.per_env_buffer_size, self.num_envs)).to(storage_device)
+        self.obs = torch.zeros((self.per_env_buffer_size, self.num_envs) + env.single_observation_space.shape, device=storage_device)
+        self.next_obs = torch.zeros((self.per_env_buffer_size, self.num_envs) + env.single_observation_space.shape, device=storage_device)
+        self.actions = torch.zeros((self.per_env_buffer_size, self.num_envs) + env.single_action_space.shape, device=storage_device)
+        self.logprobs = torch.zeros((self.per_env_buffer_size, self.num_envs), device=storage_device)
+        self.rewards = torch.zeros((self.per_env_buffer_size, self.num_envs), device=storage_device)
+        self.dones = torch.zeros((self.per_env_buffer_size, self.num_envs), device=storage_device)
+        self.values = torch.zeros((self.per_env_buffer_size, self.num_envs), device=storage_device)
 
     def add(self, obs: torch.Tensor, next_obs: torch.Tensor, action: torch.Tensor, reward: torch.Tensor, done: torch.Tensor):
+        # This function stores a transition (s, a, r, s') in the replay buffer.
         if self.storage_device == torch.device("cpu"):
             obs = obs.cpu()
             next_obs = next_obs.cpu()
             action = action.cpu()
             reward = reward.cpu()
             done = done.cpu()
-
         self.obs[self.pos] = obs
         self.next_obs[self.pos] = next_obs
         self.actions[self.pos] = action
@@ -149,30 +150,79 @@ class ReplayBuffer:
             self.full = True
             self.pos = 0
 
-    def sample(self, batch_size: int):
+    def sample(self, batch_size: int) -> ReplayBufferSample:
+        # This is where offline data is leveraged:
+        # The training update samples a batch from the replay buffer (which contains data collected offline).
         if self.full:
-            batch_inds = torch.randint(0, self.per_env_buffer_size, size=(batch_size, ))
+            batch_inds = torch.randint(0, self.per_env_buffer_size, (batch_size,))
         else:
-            batch_inds = torch.randint(0, self.pos, size=(batch_size, ))
-        env_inds = torch.randint(0, self.num_envs, size=(batch_size, ))
+            batch_inds = torch.randint(0, self.pos, (batch_size,))
+        env_inds = torch.randint(0, self.num_envs, (batch_size,))
         return ReplayBufferSample(
             obs=self.obs[batch_inds, env_inds].to(self.sample_device),
             next_obs=self.next_obs[batch_inds, env_inds].to(self.sample_device),
             actions=self.actions[batch_inds, env_inds].to(self.sample_device),
             rewards=self.rewards[batch_inds, env_inds].to(self.sample_device),
-            dones=self.dones[batch_inds, env_inds].to(self.sample_device),
+            dones=self.dones[batch_inds, env_inds].to(self.sample_device)
         )
 
-###############################################################################
-# 2. Networks: Q and Actor
-###############################################################################
 
+def save_replay_buffer(rb: ReplayBuffer, filepath: str):
+    """
+    Save the replay buffer as an HDF5 file.
+    The offline dataset (replay buffer) is saved with keys: "obs", "next_obs", "actions", "rewards", "dones".
+    This data will be used later as offline data for CQL.
+    """
+    num_samples = rb.per_env_buffer_size if rb.full else rb.pos
+    # Flatten the first two dimensions (buffer index x num_envs)
+    obs_np = rb.obs[:num_samples].cpu().numpy().reshape(-1, *rb.obs.shape[2:])
+    next_obs_np = rb.next_obs[:num_samples].cpu().numpy().reshape(-1, *rb.next_obs.shape[2:])
+    actions_np = rb.actions[:num_samples].cpu().numpy().reshape(-1, *rb.actions.shape[2:])
+    rewards_np = rb.rewards[:num_samples].cpu().numpy().reshape(-1)
+    dones_np = rb.dones[:num_samples].cpu().numpy().reshape(-1)
+    print(f"Saving replay buffer with {obs_np.shape[0]} transitions to {filepath}")
+    with h5py.File(filepath, "w") as f:
+        f.create_dataset("obs", data=obs_np)
+        f.create_dataset("next_obs", data=next_obs_np)
+        f.create_dataset("actions", data=actions_np)
+        f.create_dataset("rewards", data=rewards_np)
+        f.create_dataset("dones", data=dones_np)
+
+
+def populate_replay_buffer_from_demo(rb: ReplayBuffer, demo_path: str, device: torch.device):
+    """
+    Optionally, if a demonstration file is provided, this function prepopulates
+    the replay buffer with offline demonstration data.
+    """
+    print(f"Loading demo data from {demo_path}")
+    with h5py.File(demo_path, "r") as demo_file:
+        obs_data = demo_file["obs"][:]        # shape (N, obs_dim)
+        actions_data = demo_file["actions"][:]  # shape (N, action_dim)
+        rewards_data = demo_file["rewards"][:]  # shape (N,)
+        dones_data = demo_file["dones"][:]      # shape (N,)
+        # Compute next_obs by shifting (or use demo_file["next_obs"] if available)
+        next_obs_data = np.concatenate([obs_data[1:], obs_data[-1:]], axis=0)
+    num_samples = obs_data.shape[0]
+    print(f"Populating replay buffer with {num_samples} demo transitions.")
+    for i in range(num_samples):
+        rb.add(
+            torch.tensor(obs_data[i], dtype=torch.float32, device=device),
+            torch.tensor(next_obs_data[i], dtype=torch.float32, device=device),
+            torch.tensor(actions_data[i], dtype=torch.float32, device=device),
+            torch.tensor(rewards_data[i], dtype=torch.float32, device=device),
+            torch.tensor(dones_data[i], dtype=torch.float32, device=device)
+        )
+
+
+# ---------------------------------------------------------------------------
+# Neural Network Modules: Q-Network and Actor
+# ---------------------------------------------------------------------------
 class SoftQNetwork(nn.Module):
     def __init__(self, env):
         super().__init__()
-        in_dim = int(np.prod(env.single_observation_space.shape) + np.prod(env.single_action_space.shape))
+        input_dim = int(np.prod(env.single_observation_space.shape)) + int(np.prod(env.single_action_space.shape))
         self.net = nn.Sequential(
-            nn.Linear(in_dim, 256),
+            nn.Linear(input_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
@@ -185,25 +235,25 @@ class SoftQNetwork(nn.Module):
         x = torch.cat([x, a], dim=1)
         return self.net(x)
 
+
 LOG_STD_MAX = 2
 LOG_STD_MIN = -5
 
 class Actor(nn.Module):
     def __init__(self, env):
         super().__init__()
-        in_dim = int(np.prod(env.single_observation_space.shape))
+        obs_dim = int(np.prod(env.single_observation_space.shape))
+        act_dim = int(np.prod(env.single_action_space.shape))
         self.backbone = nn.Sequential(
-            nn.Linear(in_dim, 256),
+            nn.Linear(obs_dim, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
             nn.Linear(256, 256),
             nn.ReLU(),
         )
-        act_dim = int(np.prod(env.single_action_space.shape))
         self.fc_mean = nn.Linear(256, act_dim)
         self.fc_logstd = nn.Linear(256, act_dim)
-
         h, l = env.single_action_space.high, env.single_action_space.low
         self.register_buffer("action_scale", torch.tensor((h - l) / 2.0, dtype=torch.float32))
         self.register_buffer("action_bias", torch.tensor((h + l) / 2.0, dtype=torch.float32))
@@ -213,7 +263,6 @@ class Actor(nn.Module):
         mean = self.fc_mean(x)
         log_std = self.fc_logstd(x)
         log_std = torch.tanh(log_std)
-        # Rescale log_std into [LOG_STD_MIN, LOG_STD_MAX]
         log_std = LOG_STD_MIN + 0.5 * (LOG_STD_MAX - LOG_STD_MIN) * (log_std + 1)
         return mean, log_std
 
@@ -227,27 +276,23 @@ class Actor(nn.Module):
         mean, log_std = self(x)
         std = log_std.exp()
         normal = torch.distributions.Normal(mean, std)
-        x_t = normal.rsample()  # for reparameterization trick
+        x_t = normal.rsample()  # reparameterization trick
         y_t = torch.tanh(x_t)
         action = y_t * self.action_scale + self.action_bias
-
         log_prob = normal.log_prob(x_t)
         log_prob -= torch.log(self.action_scale * (1 - y_t.pow(2)) + 1e-6)
-        log_prob = log_prob.sum(1, keepdim=True)
-        mean_action = torch.tanh(mean) * self.action_scale + self.action_bias
-        return action, log_prob, mean_action
+        log_prob = log_prob.sum(dim=1, keepdim=True)
+        mean = torch.tanh(mean) * self.action_scale + self.action_bias
+        return action, log_prob, mean
 
     def to(self, device):
         self.action_scale = self.action_scale.to(device)
         self.action_bias = self.action_bias.to(device)
         return super().to(device)
 
-###############################################################################
-# 3. Logger
-###############################################################################
 
 class Logger:
-    def __init__(self, log_wandb=False, tensorboard: SummaryWriter = None) -> None:
+    def __init__(self, log_wandb=False, tensorboard: Optional[SummaryWriter] = None) -> None:
         self.writer = tensorboard
         self.log_wandb = log_wandb
 
@@ -260,20 +305,17 @@ class Logger:
     def close(self):
         self.writer.close()
 
-###############################################################################
-# 4. Main Training Loop with CQL Updates
-###############################################################################
 
+# ---------------------------------------------------------------------------
+# Main Training Loop
+# ---------------------------------------------------------------------------
 if __name__ == "__main__":
     args = tyro.cli(Args)
-    # Compute training and gradient update steps per iteration.
     args.grad_steps_per_iteration = int(args.training_freq * args.utd)
     args.steps_per_env = args.training_freq // args.num_envs
-
     if args.exp_name is None:
-        base = os.path.basename(__file__)
-        args.exp_name = base[:-3] if base.endswith(".py") else base
-        run_name = f"{args.env_id}__{args.exp_name}__{args.robot}__{args.seed}__{int(time.time())}"
+        args.exp_name = os.path.basename(__file__)[:-len(".py")]
+        run_name = f"{args.env_id}__{args.exp_name}__{args.seed}__{int(time.time())}"
     else:
         run_name = args.exp_name
 
@@ -286,126 +328,75 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
 
     ####### Environment Setup #######
-    env_kwargs = dict(obs_mode="state", render_mode="rgb_array", sim_backend="gpu", robot_uids=args.robot)
+    env_kwargs = dict(obs_mode="state", render_mode="rgb_array", sim_backend="gpu")
     if args.control_mode is not None:
         env_kwargs["control_mode"] = args.control_mode
-
-    envs = gym.make(args.env_id,
-                    num_envs=args.num_envs if not args.evaluate else 1,
-                    reconfiguration_freq=args.reconfiguration_freq,
-                    **env_kwargs)
-    eval_envs = gym.make(args.env_id,
-                         num_envs=args.num_eval_envs,
-                         reconfiguration_freq=args.eval_reconfiguration_freq,
-                         human_render_camera_configs=dict(shader_pack="default"),
-                         **env_kwargs)
-
+    envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1,
+                    reconfiguration_freq=args.reconfiguration_freq, **env_kwargs)
+    eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs,
+                         reconfiguration_freq=args.eval_reconfiguration_freq, **env_kwargs)
     if isinstance(envs.action_space, gym.spaces.Dict):
         envs = FlattenActionSpaceWrapper(envs)
         eval_envs = FlattenActionSpaceWrapper(eval_envs)
-
-    # Video and trajectory recording
     if args.capture_video or args.save_trajectory:
-        eval_output_dir = os.path.join(args.save_model_dir, run_name, "videos")
+        eval_output_dir = f"runs/{run_name}/videos"
         if args.evaluate:
-            eval_output_dir = os.path.join(os.path.dirname(args.checkpoint), "test_videos")
+            eval_output_dir = f"{os.path.dirname(args.checkpoint)}/test_videos"
         print(f"Saving eval trajectories/videos to {eval_output_dir}")
         if args.save_train_video_freq is not None:
             save_video_trigger = lambda x: (x // args.num_steps) % args.save_train_video_freq == 0
-            envs = RecordEpisode(
-                envs,
-                output_dir=os.path.join(args.save_model_dir, run_name, "train_videos"),
-                save_trajectory=False,
-                save_video_trigger=save_video_trigger,
-                max_steps_per_video=args.num_steps,
-                video_fps=30,
-            )
-        eval_envs = RecordEpisode(
-            eval_envs,
-            output_dir=eval_output_dir,
-            save_trajectory=args.save_trajectory,
-            save_video=args.capture_video,
-            trajectory_name="trajectory",
-            max_steps_per_video=args.num_eval_steps,
-            video_fps=30,
-            # wandb_video_freq=args.wandb_video_freq // args.eval_freq if args.eval_freq > 0 else 0
-        )
-
+            envs = RecordEpisode(envs, output_dir=f"runs/{run_name}/train_videos", save_trajectory=False,
+                                 save_video_trigger=save_video_trigger, max_steps_per_video=args.num_steps, video_fps=30)
+        eval_envs = RecordEpisode(eval_envs, output_dir=eval_output_dir, save_trajectory=args.save_trajectory,
+                                  save_video=args.capture_video, trajectory_name="trajectory", max_steps_per_video=args.num_eval_steps, video_fps=30)
     envs = ManiSkillVectorEnv(envs, args.num_envs, ignore_terminations=not args.partial_reset, record_metrics=True)
     eval_envs = ManiSkillVectorEnv(eval_envs, args.num_eval_envs, ignore_terminations=not args.eval_partial_reset, record_metrics=True)
-    assert isinstance(envs.single_action_space, gym.spaces.Box), "Only continuous action spaces are supported"
+    assert isinstance(envs.single_action_space, gym.spaces.Box), "only continuous action space is supported"
 
     max_episode_steps = gym_utils.find_max_episode_steps_value(envs._env)
-
-    # Logger / SummaryWriter
     logger = None
     if not args.evaluate:
         print("Running training")
         if args.track:
             import wandb
             config = vars(args)
-            config["env_cfg"] = dict(**env_kwargs,
-                                     num_envs=args.num_envs,
-                                     env_id=args.env_id,
-                                     reward_mode="normalized_dense",
-                                     env_horizon=max_episode_steps,
-                                     partial_reset=args.partial_reset)
-            config["eval_env_cfg"] = dict(**env_kwargs,
-                                          num_envs=args.num_eval_envs,
-                                          env_id=args.env_id,
-                                          reward_mode="normalized_dense",
-                                          env_horizon=max_episode_steps,
-                                          partial_reset=False)
-            try:
-                wandb.init(
-                    project=args.wandb_project_name,
-                    sync_tensorboard=False,
-                    config=config,
-                    name=run_name,
-                    save_code=True,
-                    group=args.wandb_group,
-                    tags=["cql"]
-                )
-            except Exception as e:
-                print("Wandb init error:", e)
-                print("Retrying wandb init without entity parameter.")
-                wandb.init(
-                    project=args.wandb_project_name,
-                    sync_tensorboard=False,
-                    config=config,
-                    name=run_name,
-                    save_code=True,
-                    group=args.wandb_group,
-                    tags=["cql"]
-                )
-        writer = SummaryWriter(os.path.join(args.save_model_dir, run_name))
-        writer.add_text("hyperparameters",
-                        "|param|value|\n|-|-|\n%s" %
-                        ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])))
+            config["env_cfg"] = dict(**env_kwargs, num_envs=args.num_envs, env_id=args.env_id,
+                                     reward_mode="normalized_dense", env_horizon=max_episode_steps, partial_reset=args.partial_reset)
+            config["eval_env_cfg"] = dict(**env_kwargs, num_envs=args.num_eval_envs, env_id=args.env_id,
+                                           reward_mode="normalized_dense", env_horizon=max_episode_steps, partial_reset=False)
+            wandb.init(
+                project=args.wandb_project_name,
+                entity=args.wandb_entity,
+                sync_tensorboard=False,
+                config=config,
+                name=run_name,
+                save_code=True,
+                group=args.wandb_group,
+                tags=["cql", "sac", "offline"]
+            )
+        writer = SummaryWriter(f"runs/{run_name}")
+        writer.add_text("hyperparameters", "|param|value|\n|-|-|\n" +
+                        "\n".join([f"|{key}|{value}|" for key, value in vars(args).items()]))
         logger = Logger(log_wandb=args.track, tensorboard=writer)
     else:
         print("Running evaluation")
 
-    # Build networks
+    max_action = float(envs.single_action_space.high[0])
     actor = Actor(envs).to(device)
     qf1 = SoftQNetwork(envs).to(device)
     qf2 = SoftQNetwork(envs).to(device)
     qf1_target = SoftQNetwork(envs).to(device)
     qf2_target = SoftQNetwork(envs).to(device)
-
-    # Load checkpoint if provided
     if args.checkpoint is not None:
         ckpt = torch.load(args.checkpoint)
-        actor.load_state_dict(ckpt["actor"])
-        qf1.load_state_dict(ckpt["qf1"])
-        qf2.load_state_dict(ckpt["qf2"])  
+        actor.load_state_dict(ckpt['actor'])
+        qf1.load_state_dict(ckpt['qf1'])
+        qf2.load_state_dict(ckpt['qf2'])
     qf1_target.load_state_dict(qf1.state_dict())
     qf2_target.load_state_dict(qf2.state_dict())
-
     q_optimizer = optim.Adam(list(qf1.parameters()) + list(qf2.parameters()), lr=args.q_lr)
-    actor_optimizer = optim.Adam(list(actor.parameters()), lr=args.policy_lr)
+    actor_optimizer = optim.Adam(actor.parameters(), lr=args.policy_lr)
 
-    # SAC alpha auto-tuning
     if args.autotune:
         target_entropy = -torch.prod(torch.Tensor(envs.single_action_space.shape).to(device)).item()
         log_alpha = torch.zeros(1, requires_grad=True, device=device)
@@ -414,88 +405,70 @@ if __name__ == "__main__":
     else:
         alpha = args.alpha
 
-    # CQL alpha auto-tuning (optional)
-    if args.cql_autotune:
-        cql_log_alpha = torch.zeros(1, requires_grad=True, device=device)
-        cql_alpha = cql_log_alpha.exp().item()
-        cql_a_optimizer = optim.Adam([cql_log_alpha], lr=args.q_lr)
-    else:
-        cql_alpha = args.cql_alpha
-
-    # Create replay buffer
+    envs.single_observation_space.dtype = np.float32
     rb = ReplayBuffer(
         env=envs,
         num_envs=args.num_envs,
         buffer_size=args.buffer_size,
         storage_device=torch.device(args.buffer_device),
-        sample_device=device,
+        sample_device=device
     )
 
-    # Precompute action-space bounds for CQL random action sampling.
-    action_dim = envs.single_action_space.shape[0]
-    action_low = torch.as_tensor(envs.single_action_space.low, device=device, dtype=torch.float32)
-    action_high = torch.as_tensor(envs.single_action_space.high, device=device, dtype=torch.float32)
+    # Offline Data: Prepopulate the replay buffer with demonstration data if provided.
+    # Otherwise, the buffer is populated online as the agent interacts with the environment.
+    if args.demo_path is not None:
+        populate_replay_buffer_from_demo(rb, args.demo_path, device)
+    else:
+        print("No demo_path provided. Collecting data online...")
 
-    # Initialize environment state
-    obs, _ = envs.reset(seed=args.seed)
+    obs, info = envs.reset(seed=args.seed)
     eval_obs, _ = eval_envs.reset(seed=args.seed)
     global_step = 0
     global_update = 0
     learning_has_started = False
     global_steps_per_iteration = args.num_envs * args.steps_per_env
-    pbar = tqdm(total=args.total_timesteps, desc="Training CQL")
+    pbar = tqdm(total=args.total_timesteps, desc="Training SAC")
     cumulative_times = defaultdict(float)
 
-    ###########################################################################
-    # Main Loop
-    ###########################################################################
+    # Precompute bounds for CQL random action sampling.
+    action_low = torch.tensor(envs.single_action_space.low, device=device).float()
+    action_high = torch.tensor(envs.single_action_space.high, device=device).float()
+    action_dim = envs.single_action_space.shape[0]
+
     while global_step < args.total_timesteps:
-        # Evaluation every eval_freq iterations (in env steps)
-        if args.eval_freq > 0 and (global_step - args.training_freq) // args.eval_freq < global_step // args.eval_freq:
+        pbar.update(global_steps_per_iteration)
+        if args.eval_freq > 0 and (global_step - args.learning_starts) // args.eval_freq < global_step // args.eval_freq:
             actor.eval()
             stime = time.perf_counter()
             eval_obs, _ = eval_envs.reset()
             eval_metrics = defaultdict(list)
-            num_episodes = 0
             for _ in range(args.num_eval_steps):
                 with torch.no_grad():
-                    eval_action = actor.get_eval_action(eval_obs)
-                    eval_obs, eval_rew, eval_terminations, eval_truncations, eval_infos = eval_envs.step(eval_action)
+                    eval_obs, eval_rew, eval_terminations, eval_truncations, eval_infos = eval_envs.step(actor.get_eval_action(eval_obs))
                     if "final_info" in eval_infos:
                         mask = eval_infos["_final_info"]
-                        num_episodes += mask.sum().item()
                         for k, v in eval_infos["final_info"]["episode"].items():
                             eval_metrics[k].append(v)
-            eval_metrics_mean = {}
-            for k, v in eval_metrics.items():
-                mean = torch.stack(v).float().mean()
-                eval_metrics_mean[k] = mean
-                if logger is not None:
-                    logger.add_scalar(f"eval/{k}", mean, global_step)
+            eval_metrics_mean = {k: torch.stack(v).float().mean().item() for k, v in eval_metrics.items()}
             pbar.set_description(f"success_once: {eval_metrics_mean.get('success_once', 0):.2f}, return: {eval_metrics_mean.get('return', 0):.2f}")
             if logger is not None:
-                eval_time = time.perf_counter() - stime
-                cumulative_times["eval_time"] += eval_time
-                logger.add_scalar("time/eval_time", eval_time, global_step)
+                for k, v in eval_metrics_mean.items():
+                    logger.add_scalar(f"eval/{k}", v, global_step)
+                logger.add_scalar("time/eval_time", time.perf_counter() - stime, global_step)
             if args.evaluate:
                 break
             actor.train()
-
-            # Optionally save model checkpoint during training.
             if args.save_model:
-                model_path = os.path.join(args.save_model_dir, run_name, f"ckpt_{global_step}.pt")
-                os.makedirs(os.path.dirname(model_path), exist_ok=True)
+                model_path = f"runs/{run_name}/ckpt_{global_step}.pt"
                 torch.save({
-                    "actor": actor.state_dict(),
-                    "qf1": qf1_target.state_dict(),
-                    "qf2": qf2_target.state_dict(),
-                    "log_alpha": log_alpha if args.autotune else None,
-                    "cql_log_alpha": cql_log_alpha if args.cql_autotune else None,
+                    'actor': actor.state_dict(),
+                    'qf1': qf1_target.state_dict(),
+                    'qf2': qf2_target.state_dict(),
+                    'log_alpha': log_alpha,
                 }, model_path)
-                print(f"model saved to {model_path}")
+                print(f"Model saved to {model_path}")
 
-        # Rollout / data collection
-        rollout_start = time.perf_counter()
+        rollout_time = time.perf_counter()
         for _ in range(args.steps_per_env):
             global_step += args.num_envs
             if not learning_has_started:
@@ -505,165 +478,124 @@ if __name__ == "__main__":
                 actions = actions.detach()
             next_obs, rewards, terminations, truncations, infos = envs.step(actions)
             real_next_obs = next_obs.clone()
-
-            if args.bootstrap_at_done == "never":
-                stop_bootstrap = terminations | truncations
-            elif args.bootstrap_at_done == "always":
-                stop_bootstrap = torch.zeros_like(terminations, dtype=torch.bool)
+            if args.bootstrap_at_done == 'never':
+                need_final_obs = torch.ones_like(terminations, dtype=torch.bool)
+                stop_bootstrap = truncations | terminations
             else:
-                stop_bootstrap = terminations
-
+                if args.bootstrap_at_done == 'always':
+                    need_final_obs = truncations | terminations
+                    stop_bootstrap = torch.zeros_like(terminations, dtype=torch.bool)
+                else:
+                    need_final_obs = truncations & (~terminations)
+                    stop_bootstrap = terminations
             if "final_info" in infos:
-                done_mask = infos["_final_info"]
-                real_next_obs[done_mask] = infos["final_observation"][done_mask]
                 final_info = infos["final_info"]
+                done_mask = infos["_final_info"]
+                real_next_obs[need_final_obs] = infos["final_observation"][need_final_obs]
                 for k, v in final_info["episode"].items():
-                    if logger is not None:
-                        logger.add_scalar(f"train/{k}", v[done_mask].float().mean(), global_step)
-
+                    logger.add_scalar(f"train/{k}", v[done_mask].float().mean(), global_step)
+            # <-- Offline Data Collection:
+            # Each transition (obs, action, reward, next_obs, done) is stored in the replay buffer,
+            # forming the offline dataset used in training.
             rb.add(obs, real_next_obs, actions, rewards, stop_bootstrap)
             obs = next_obs
-        rollout_time = time.perf_counter() - rollout_start
+        rollout_time = time.perf_counter() - rollout_time
         cumulative_times["rollout_time"] += rollout_time
         pbar.update(args.num_envs * args.steps_per_env)
 
-        # Do not start learning until sufficient data is collected.
         if global_step < args.learning_starts:
             continue
 
-        # Training updates
-        update_start = time.perf_counter()
         learning_has_started = True
         for _ in range(args.grad_steps_per_iteration):
             global_update += 1
+            # <-- Offline Data Sampling:
+            # A batch is sampled from the replay buffer (the offline data) for the Q-update.
             data = rb.sample(args.batch_size)
-
-            # 1. Standard TD target computation
             with torch.no_grad():
-                next_action, next_log_pi, _ = actor.get_action(data.next_obs)
-                qf1_next_target = qf1_target(data.next_obs, next_action)
-                qf2_next_target = qf2_target(data.next_obs, next_action)
-                min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - alpha * next_log_pi
-                target_q = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * min_qf_next_target.view(-1)
-
-            # 2. Evaluate current Q values for data actions
+                next_state_actions, next_state_log_pi, _ = actor.get_action(data.next_obs)
+                qf1_next_target = qf1_target(data.next_obs, next_state_actions)
+                qf2_next_target = qf2_target(data.next_obs, next_state_actions)
+                min_qf_next_target = torch.min(qf1_next_target, qf2_next_target) - alpha * next_state_log_pi
+                next_q_value = data.rewards.flatten() + (1 - data.dones.flatten()) * args.gamma * min_qf_next_target.view(-1)
             qf1_a_values = qf1(data.obs, data.actions).view(-1)
             qf2_a_values = qf2(data.obs, data.actions).view(-1)
+            qf1_loss = F.mse_loss(qf1_a_values, next_q_value)
+            qf2_loss = F.mse_loss(qf2_a_values, next_q_value)
+            q_loss = qf1_loss + qf2_loss
 
-            # 3. CQL log-sum-exp penalty.
-            batch_size_ = data.obs.shape[0]
-            rand_actions = torch.rand(batch_size_, args.cql_n_actions, action_dim, device=device)
-            rand_actions = rand_actions * (action_high - action_low) + action_low
-
-            obs_tiled = data.obs.unsqueeze(1).expand(batch_size_, args.cql_n_actions, -1)
-            obs_tiled = obs_tiled.reshape(batch_size_ * args.cql_n_actions, -1)
-            rand_actions_flat = rand_actions.reshape(batch_size_ * args.cql_n_actions, action_dim)
-
-            qf1_rand = qf1(obs_tiled, rand_actions_flat).view(batch_size_, args.cql_n_actions)
-            qf2_rand = qf2(obs_tiled, rand_actions_flat).view(batch_size_, args.cql_n_actions)
-
-            qf1_rand_logsumexp = torch.logsumexp(qf1_rand, dim=1)
-            qf2_rand_logsumexp = torch.logsumexp(qf2_rand, dim=1)
-
-            cql_conservative_term_1 = qf1_rand_logsumexp.mean() - qf1_a_values.mean()
-            cql_conservative_term_2 = qf2_rand_logsumexp.mean() - qf2_a_values.mean()
-
-            if args.cql_autotune:
-                cql_loss_1 = cql_alpha * (cql_conservative_term_1 - args.cql_target_action_gap)
-                cql_loss_2 = cql_alpha * (cql_conservative_term_2 - args.cql_target_action_gap)
-            else:
-                cql_loss_1 = cql_alpha * cql_conservative_term_1
-                cql_loss_2 = cql_alpha * cql_conservative_term_2
-
-            # 4. Combine standard TD loss with CQL penalty.
-            qf1_loss = F.mse_loss(qf1_a_values, target_q) + cql_loss_1
-            qf2_loss = F.mse_loss(qf2_a_values, target_q) + cql_loss_2
-            qf_loss = qf1_loss + qf2_loss
+            # --- CQL Conservative Penalty ---
+            # This block enforces that the Q-values for out-of-distribution actions (sampled uniformly)
+            # are lower than those for actions in the dataset. This is the core conservative term.
+            bs = data.obs.shape[0]
+            random_actions = torch.rand(bs, args.cql_num_random, action_dim, device=device) * (action_high - action_low) + action_low
+            obs_expanded = data.obs.unsqueeze(1).expand(bs, args.cql_num_random, -1).reshape(-1, data.obs.shape[1])
+            random_actions_flat = random_actions.reshape(-1, action_dim)
+            qf1_rand = qf1(obs_expanded, random_actions_flat).view(bs, args.cql_num_random)
+            qf2_rand = qf2(obs_expanded, random_actions_flat).view(bs, args.cql_num_random)
+            qf1_rand_logsumexp = torch.logsumexp(qf1_rand, dim=1).mean()
+            qf2_rand_logsumexp = torch.logsumexp(qf2_rand, dim=1).mean()
+            qf1_data_mean = qf1(data.obs, data.actions).mean()
+            qf2_data_mean = qf2(data.obs, data.actions).mean()
+            cql_penalty = (qf1_rand_logsumexp - qf1_data_mean) + (qf2_rand_logsumexp - qf2_data_mean)
+            q_loss = q_loss + args.cql_alpha * cql_penalty
 
             q_optimizer.zero_grad()
-            qf_loss.backward()
+            q_loss.backward()
             q_optimizer.step()
 
-            # Optional: Lagrangian update for cql_alpha
-            if args.cql_autotune:
-                cql_alpha_loss = - (cql_log_alpha.exp() * (
-                    (cql_conservative_term_1 - args.cql_target_action_gap).detach() +
-                    (cql_conservative_term_2 - args.cql_target_action_gap).detach()
-                ))
-                cql_a_optimizer.zero_grad()
-                cql_alpha_loss.backward()
-                cql_a_optimizer.step()
-                cql_alpha = cql_log_alpha.exp().item()
-
-            # 5. Policy update (delayed)
             if global_update % args.policy_frequency == 0:
                 pi, log_pi, _ = actor.get_action(data.obs)
                 qf1_pi = qf1(data.obs, pi)
                 qf2_pi = qf2(data.obs, pi)
                 min_qf_pi = torch.min(qf1_pi, qf2_pi)
-                actor_loss = (alpha * log_pi - min_qf_pi).mean()
-
+                actor_loss = ((alpha * log_pi) - min_qf_pi).mean()
                 actor_optimizer.zero_grad()
                 actor_loss.backward()
                 actor_optimizer.step()
 
-                # SAC alpha tuning
                 if args.autotune:
                     with torch.no_grad():
-                        _, log_pi_eval, _ = actor.get_action(data.obs)
-                    alpha_loss = - (log_alpha.exp() * (log_pi_eval + target_entropy)).mean()
+                        _, log_pi, _ = actor.get_action(data.obs)
+                    alpha_loss = (-log_alpha.exp() * (log_pi + target_entropy)).mean()
                     a_optimizer.zero_grad()
                     alpha_loss.backward()
                     a_optimizer.step()
                     alpha = log_alpha.exp().item()
 
-            # 6. Soft-update the target networks.
             if global_update % args.target_network_frequency == 0:
                 for param, target_param in zip(qf1.parameters(), qf1_target.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
                 for param, target_param in zip(qf2.parameters(), qf2_target.parameters()):
                     target_param.data.copy_(args.tau * param.data + (1 - args.tau) * target_param.data)
-
-        update_time = time.perf_counter() - update_start
+        update_time = time.perf_counter() - update_time
         cumulative_times["update_time"] += update_time
 
-        # Logging training info every log_freq steps.
-        if logger is not None and (global_step - args.training_freq) // args.log_freq < global_step // args.log_freq:
+        if (global_step - args.learning_starts) // args.log_freq < global_step // args.log_freq:
             logger.add_scalar("losses/qf1_loss", qf1_loss.item(), global_step)
             logger.add_scalar("losses/qf2_loss", qf2_loss.item(), global_step)
-            logger.add_scalar("losses/qf_loss_total", qf_loss.item(), global_step)
-            logger.add_scalar("losses/cql_term_1", cql_conservative_term_1.item(), global_step)
-            logger.add_scalar("losses/cql_term_2", cql_conservative_term_2.item(), global_step)
-            logger.add_scalar("losses/cql_loss_1", cql_loss_1.item(), global_step)
-            logger.add_scalar("losses/cql_loss_2", cql_loss_2.item(), global_step)
+            logger.add_scalar("losses/qf_loss", q_loss.item(), global_step)
             logger.add_scalar("losses/actor_loss", actor_loss.item(), global_step)
             logger.add_scalar("losses/alpha", alpha, global_step)
-            if args.cql_autotune:
-                logger.add_scalar("losses/cql_alpha", cql_alpha, global_step)
-            logger.add_scalar("time/update_time", update_time, global_step)
             logger.add_scalar("time/rollout_time", rollout_time, global_step)
-            logger.add_scalar("time/rollout_fps", global_steps_per_iteration / rollout_time, global_step)
             for k, v in cumulative_times.items():
                 logger.add_scalar(f"time/total_{k}", v, global_step)
-            total_time = cumulative_times["rollout_time"] + cumulative_times["update_time"]
-            logger.add_scalar("time/total_rollout+update_time", total_time, global_step)
+            logger.add_scalar("time/total_rollout+update_time", cumulative_times["rollout_time"] + cumulative_times["update_time"], global_step)
             if args.autotune:
                 logger.add_scalar("losses/alpha_loss", alpha_loss.item(), global_step)
 
-    # Final save
     if not args.evaluate and args.save_model:
-        model_path = os.path.join(args.save_model_dir, run_name, "final_ckpt.pt")
-        os.makedirs(os.path.dirname(model_path), exist_ok=True)
+        model_path = f"runs/{run_name}/final_ckpt.pt"
         torch.save({
-            "actor": actor.state_dict(),
-            "qf1": qf1_target.state_dict(),
-            "qf2": qf2_target.state_dict(),
-            "log_alpha": log_alpha if args.autotune else None,
-            "cql_log_alpha": cql_log_alpha if args.cql_autotune else None,
+            'actor': actor.state_dict(),
+            'qf1': qf1_target.state_dict(),
+            'qf2': qf2_target.state_dict(),
+            'log_alpha': log_alpha,
         }, model_path)
-        print(f"model saved to {model_path}")
-        if logger is not None:
-            logger.close()
-
+        print(f"Final model saved to {model_path}")
+        writer.close()
     envs.close()
-    eval_envs.close()
+
+    # ----- Save the Replay Buffer (Offline Data) as an HDF5 Dataset -----
+    save_replay_buffer(rb, args.save_buffer_path)
+    print(f"Replay buffer saved to {args.save_buffer_path}")
