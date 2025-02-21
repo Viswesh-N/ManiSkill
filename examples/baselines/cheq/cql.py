@@ -92,7 +92,7 @@ class Args:
     bootstrap_at_done: str = "always"
 
     # CQL-specific hyperparameters (CQL(H) variant using uniform sampling)
-    cql_alpha: float = 1.0      # Weight for the conservative penalty term
+    cql_alpha: float = 0.1      # Weight for the conservative penalty term
     cql_num_random: int = 10    # Number of random actions sampled per state
 
     # Optional demonstration file to prepopulate the replay buffer
