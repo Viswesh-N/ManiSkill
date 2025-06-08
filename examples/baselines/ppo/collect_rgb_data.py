@@ -473,7 +473,7 @@ def main():
     parser = argparse.ArgumentParser(description="Collect enhanced RGB data with rewards from ManiSkill environment")
     parser.add_argument("target_dir", type=str, help="Directory to save collected data")
     parser.add_argument("--env_id", type=str, default="PickCube-v1", help="Environment ID")
-    parser.add_argument("--total_steps", type=int, default=1000, help="Total steps to collect")
+    parser.add_argument("--total_steps", type=int, default=100000, help="Total steps to collect")
     parser.add_argument("--num_envs", type=int, default=8, help="Number of parallel environments")
     parser.add_argument("--control_mode", type=str, default="pd_joint_delta_pos", help="Control mode")
     parser.add_argument("--reward_mode", type=str, default="dense", choices=["sparse", "dense", "normalized_dense", "none"], help="Reward mode")
