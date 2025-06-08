@@ -1,0 +1,74 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: visweshn-maniskill-bg-edit
+  namespace: ucsd-haosulab
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: maniskill-postprocess
+        image: docker.io/visweshnagaswamy/sphere-approx:latest
+        imagePullPolicy: Always
+        env:
+        - name: WANDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wandb-secret
+              key: WANDB_API_KEY
+        - name: PYTHONPATH
+          value: /app
+        - name: GITHUB_PAT
+          valueFrom:
+            secretKeyRef:
+              name: github-secret
+              key: GITHUB_PAT
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -eux
+          cd /app
+          # Clone or update Maniskill repo
+          if [ ! -d .git ]; then
+            git clone https://github.com/Viswesh-N/Maniskill.git .
+          else
+            git stash || true
+            git pull origin main || true
+          fi
+
+          # Install dependencies
+          pip install -r requirements.txt
+          pip install diffusers scipy torch
+
+          
+          python examples/baselines/ppo/collect_rgb_data.py \
+            --output-dir /pers_vol/data \
+            --num-frames 1000 \
+            --env-name PickCube-v1
+
+          
+          python examples/baselines/ppo/postprocess.py \
+            --input-dir /pers_vol/data \
+            --output-dir /pers_vol/data_outputs \
+            --division-id 1 \
+            --num-inference-steps 25 \
+            --image-guidance-scale 3.5 \
+            --inpaint-method white \
+          | tee /pers_vol/postprocess_$(date +%Y-%m-%d_%H-%M-%S).log
+        volumeMounts:
+        - name: maniskill-volume
+          mountPath: /pers_vol
+        resources:
+          requests:
+            cpu: "24"
+            memory: "128Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "24"
+            memory: "128Gi"
+            nvidia.com/gpu: "1"
+      volumes:
+      - name: maniskill-volume
+        persistentVolumeClaim:
+          claimName: viswesh-slow-vol
