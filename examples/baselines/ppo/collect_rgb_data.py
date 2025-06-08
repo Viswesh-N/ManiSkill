@@ -1,9 +1,11 @@
 #!/usr/bin/env python3
 """
-RGB Data Collection Script for ManiSkill Environments
+Enhanced RGB Data Collection Script for ManiSkill Environments with Rewards
 
-This script collects 128x128 RGB images and corresponding actions from a ManiSkill environment
-for approximately 100k steps, saving them in an organized folder structure with metadata.
+This script collects 128x128 RGB images, segmentation masks, actions, rewards, 
+and episode information from a ManiSkill environment for RL training data.
+
+Saves complete (s, a, r, s', done) tuples plus episode metadata.
 """
 
 import os
@@ -48,6 +50,8 @@ class CollectionArgs:
     """Action selection mode: 'random' or 'trained' (if you have a trained model)"""
     save_frequency: int = 1
     """Save every N steps (1 means save every step)"""
+    reward_mode: str = "dense"
+    """Reward mode: 'sparse', 'dense', 'normalized_dense', or 'none'"""
 
 
 def layer_init(layer, std=np.sqrt(2), bias_const=0.0):
@@ -179,7 +183,7 @@ class SimpleAgent(nn.Module):
             return self.actor_mean(features)
 
 
-class DataCollector:
+class EnhancedDataCollector:
     def __init__(self, args: CollectionArgs):
         self.args = args
         self.setup_directories()
@@ -187,31 +191,49 @@ class DataCollector:
         self.setup_agent()
         self.metadata = {
             "images": [],
+            "next_images": [],
             "segmentation_masks": [],
+            "next_segmentation_masks": [],
             "actions": [],
+            "rewards": [],
+            "terminations": [],
+            "truncations": [],
+            "episode_info": [],
             "env_info": {
                 "env_id": args.env_id,
                 "control_mode": args.control_mode,
+                "reward_mode": args.reward_mode,
                 "image_size": args.image_size,
                 "total_steps": args.total_steps,
                 "num_envs": args.num_envs,
             }
         }
         
+        # Episode tracking
+        self.episode_rewards = [0.0] * args.num_envs
+        self.episode_lengths = [0] * args.num_envs
+        self.episode_count = 0
+        
     def setup_directories(self):
         """Create organized directory structure"""
         self.base_dir = self.args.target_dir
         self.images_dir = os.path.join(self.base_dir, "images")
+        self.next_images_dir = os.path.join(self.base_dir, "next_images")
         self.segmentation_dir = os.path.join(self.base_dir, "segmentation")
+        self.next_segmentation_dir = os.path.join(self.base_dir, "next_segmentation")
         self.metadata_dir = os.path.join(self.base_dir, "metadata")
         
         os.makedirs(self.images_dir, exist_ok=True)
+        os.makedirs(self.next_images_dir, exist_ok=True)
         os.makedirs(self.segmentation_dir, exist_ok=True)
+        os.makedirs(self.next_segmentation_dir, exist_ok=True)
         os.makedirs(self.metadata_dir, exist_ok=True)
         
         print(f"Data will be saved to: {self.base_dir}")
         print(f"Images directory: {self.images_dir}")
+        print(f"Next images directory: {self.next_images_dir}")
         print(f"Segmentation directory: {self.segmentation_dir}")
+        print(f"Next segmentation directory: {self.next_segmentation_dir}")
         print(f"Metadata directory: {self.metadata_dir}")
 
     def setup_environment(self):
@@ -223,10 +245,11 @@ class DataCollector:
         
         # Environment setup with RGB and segmentation mode
         env_kwargs = {
-            "obs_mode": "rgb+segmentation",  # Changed to get proper segmentation
+            "obs_mode": "rgb+segmentation",
             "render_mode": "rgb_array",
             "sim_backend": "physx_cuda",
             "control_mode": self.args.control_mode,
+            "reward_mode": self.args.reward_mode,  # Explicitly set reward mode
         }
         
         # Create environment
@@ -236,9 +259,7 @@ class DataCollector:
             **env_kwargs
         )
         
-        # Note: We don't use FlattenRGBDObservationWrapper with rgb+segmentation mode
-        # since we handle the sensor_data structure manually
-        
+        # Wrap with action space flattening if needed
         if isinstance(self.envs.action_space, gym.spaces.Dict):
             self.envs = FlattenActionSpaceWrapper(self.envs)
             
@@ -249,6 +270,7 @@ class DataCollector:
         self.segmentation_id_map = self.envs._env.unwrapped.segmentation_id_map
         
         print(f"Environment setup complete: {self.args.env_id}")
+        print(f"Reward mode: {self.args.reward_mode}")
         print(f"Action space: {self.envs.single_action_space}")
         print(f"Observation space: {self.envs.single_observation_space}")
         
@@ -265,55 +287,75 @@ class DataCollector:
         self.agent = SimpleAgent(self.envs, sample_obs=obs, mode=self.args.action_mode)
         print(f"Agent setup complete in {self.args.action_mode} mode")
 
-    def resize_rgb_image(self, rgb_array):
-        """Resize RGB image to target size"""
-        # rgb_array is expected to be (H, W, 3)
-        if rgb_array.shape[:2] != (self.args.image_size, self.args.image_size):
-            image = Image.fromarray(rgb_array.astype(np.uint8))
-            image = image.resize((self.args.image_size, self.args.image_size), Image.LANCZOS)
-            rgb_array = np.array(image)
-        return rgb_array
+    def resize_image(self, image_array):
+        """Resize image to target size"""
+        if image_array.shape[:2] != (self.args.image_size, self.args.image_size):
+            image = Image.fromarray(image_array.astype(np.uint8) if len(image_array.shape) == 3 else image_array.astype(np.uint16))
+            image = image.resize((self.args.image_size, self.args.image_size), 
+                               Image.LANCZOS if len(image_array.shape) == 3 else Image.NEAREST)
+            image_array = np.array(image)
+        return image_array
 
-    def resize_segmentation_mask(self, seg_array):
-        """Resize segmentation mask to target size using nearest neighbor to preserve labels"""
-        # seg_array is expected to be (H, W) with integer labels
-        if seg_array.shape[:2] != (self.args.image_size, self.args.image_size):
-            # Use PIL for resizing with nearest neighbor to preserve integer labels
-            image = Image.fromarray(seg_array.astype(np.uint16))
-            image = image.resize((self.args.image_size, self.args.image_size), Image.NEAREST)
-            seg_array = np.array(image)
-        return seg_array
-
-    def save_step_data(self, step: int, env_idx: int, rgb_image: np.ndarray, segmentation_mask: np.ndarray, action: np.ndarray):
-        """Save RGB image, segmentation mask, and action for a single step"""
+    def save_step_data(self, step: int, env_idx: int, 
+                      current_rgb: np.ndarray, current_seg: np.ndarray,
+                      next_rgb: np.ndarray, next_seg: np.ndarray,
+                      action: np.ndarray, reward: float, 
+                      terminated: bool, truncated: bool, info: dict):
+        """Save complete (s, a, r, s', done) tuple for a single step"""
+        
         # Create filenames
-        rgb_filename = f"step_{step:08d}_env_{env_idx:02d}_rgb.png"
-        seg_filename = f"step_{step:08d}_env_{env_idx:02d}_seg.png"
+        current_rgb_filename = f"step_{step:08d}_env_{env_idx:02d}_rgb.png"
+        current_seg_filename = f"step_{step:08d}_env_{env_idx:02d}_seg.png"
+        next_rgb_filename = f"step_{step:08d}_env_{env_idx:02d}_next_rgb.png"
+        next_seg_filename = f"step_{step:08d}_env_{env_idx:02d}_next_seg.png"
         
-        rgb_path = os.path.join(self.images_dir, rgb_filename)
-        seg_path = os.path.join(self.segmentation_dir, seg_filename)
+        current_rgb_path = os.path.join(self.images_dir, current_rgb_filename)
+        current_seg_path = os.path.join(self.segmentation_dir, current_seg_filename)
+        next_rgb_path = os.path.join(self.next_images_dir, next_rgb_filename)
+        next_seg_path = os.path.join(self.next_segmentation_dir, next_seg_filename)
         
-        # Resize and save RGB image
-        resized_rgb = self.resize_rgb_image(rgb_image)
-        Image.fromarray(resized_rgb.astype(np.uint8)).save(rgb_path)
+        # Resize and save images
+        resized_current_rgb = self.resize_image(current_rgb)
+        resized_current_seg = self.resize_image(current_seg)
+        resized_next_rgb = self.resize_image(next_rgb)
+        resized_next_seg = self.resize_image(next_seg)
         
-        # Resize and save segmentation mask
-        resized_seg = self.resize_segmentation_mask(segmentation_mask)
-        Image.fromarray(resized_seg.astype(np.uint16)).save(seg_path)
+        Image.fromarray(resized_current_rgb.astype(np.uint8)).save(current_rgb_path)
+        Image.fromarray(resized_current_seg.astype(np.uint16)).save(current_seg_path)
+        Image.fromarray(resized_next_rgb.astype(np.uint8)).save(next_rgb_path)
+        Image.fromarray(resized_next_seg.astype(np.uint16)).save(next_seg_path)
         
         # Add to metadata
-        rgb_relative_path = os.path.join("images", rgb_filename)
-        seg_relative_path = os.path.join("segmentation", seg_filename)
+        current_rgb_relative = os.path.join("images", current_rgb_filename)
+        current_seg_relative = os.path.join("segmentation", current_seg_filename)
+        next_rgb_relative = os.path.join("next_images", next_rgb_filename)
+        next_seg_relative = os.path.join("next_segmentation", next_seg_filename)
         
-        self.metadata["images"].append(rgb_relative_path)
-        self.metadata["segmentation_masks"].append(seg_relative_path)
+        self.metadata["images"].append(current_rgb_relative)
+        self.metadata["segmentation_masks"].append(current_seg_relative)
+        self.metadata["next_images"].append(next_rgb_relative)
+        self.metadata["next_segmentation_masks"].append(next_seg_relative)
         self.metadata["actions"].append(action.tolist())
+        self.metadata["rewards"].append(float(reward))
+        self.metadata["terminations"].append(bool(terminated))
+        self.metadata["truncations"].append(bool(truncated))
         
-        return rgb_relative_path, seg_relative_path
+        # Episode info
+        episode_info = {
+            "step": step,
+            "env_idx": env_idx,
+            "episode_reward": self.episode_rewards[env_idx],
+            "episode_length": self.episode_lengths[env_idx],
+            "success": info.get("success", {}).get(env_idx, False) if isinstance(info.get("success", {}), dict) else bool(info.get("success", [False] * self.args.num_envs)[env_idx]),
+            "fail": info.get("fail", {}).get(env_idx, False) if isinstance(info.get("fail", {}), dict) else bool(info.get("fail", [False] * self.args.num_envs)[env_idx]),
+        }
+        self.metadata["episode_info"].append(episode_info)
+        
+        return current_rgb_relative, current_seg_relative, next_rgb_relative, next_seg_relative
 
     def collect_data(self):
         """Main data collection loop"""
-        print(f"Starting data collection for {self.args.total_steps} steps...")
+        print(f"Starting enhanced data collection for {self.args.total_steps} steps...")
         
         obs, _ = self.envs.reset(seed=self.args.seed)
         step_count = 0
@@ -323,6 +365,10 @@ class DataCollector:
         
         try:
             while step_count < self.args.total_steps:
+                # Get current state data
+                current_sensor_data = obs["sensor_data"]
+                cam_name = list(current_sensor_data.keys())[0]
+                
                 # Get actions from agent
                 with torch.no_grad():
                     actions = self.agent.get_action(obs)
@@ -330,29 +376,50 @@ class DataCollector:
                 # Step environment
                 next_obs, rewards, terminations, truncations, infos = self.envs.step(actions)
                 
+                # Get next state data
+                next_sensor_data = next_obs["sensor_data"]
+                
+                # Update episode tracking
+                for env_idx in range(self.args.num_envs):
+                    self.episode_rewards[env_idx] += float(rewards[env_idx])
+                    self.episode_lengths[env_idx] += 1
+                    
+                    # Reset episode tracking if episode ended
+                    if terminations[env_idx] or truncations[env_idx]:
+                        self.episode_rewards[env_idx] = 0.0
+                        self.episode_lengths[env_idx] = 0
+                        self.episode_count += 1
+                
                 # Save data if it's time
                 if step_count % self.args.save_frequency == 0:
                     for env_idx in range(self.args.num_envs):
                         if step_count >= self.args.total_steps:
                             break
                             
-                        # Extract RGB and segmentation data from sensor_data structure
-                        # In rgb+segmentation mode, data is in obs["sensor_data"][cam_name]
-                        sensor_data = obs["sensor_data"]
+                        # Extract current state
+                        current_rgb = current_sensor_data[cam_name]["rgb"][env_idx].cpu().numpy()
+                        current_seg = current_sensor_data[cam_name]["segmentation"][env_idx].cpu().numpy()
+                        if len(current_seg.shape) == 3 and current_seg.shape[-1] == 1:
+                            current_seg = current_seg.squeeze(-1)
                         
-                        # Get the first camera's data (assuming single camera setup)
-                        cam_name = list(sensor_data.keys())[0]
-                        rgb_image = sensor_data[cam_name]["rgb"][env_idx].cpu().numpy()
-                        segmentation_mask = sensor_data[cam_name]["segmentation"][env_idx].cpu().numpy()
-                        
-                        # Segmentation mask is typically (H, W, 1), so squeeze the last dimension
-                        if len(segmentation_mask.shape) == 3 and segmentation_mask.shape[-1] == 1:
-                            segmentation_mask = segmentation_mask.squeeze(-1)
+                        # Extract next state
+                        next_rgb = next_sensor_data[cam_name]["rgb"][env_idx].cpu().numpy()
+                        next_seg = next_sensor_data[cam_name]["segmentation"][env_idx].cpu().numpy()
+                        if len(next_seg.shape) == 3 and next_seg.shape[-1] == 1:
+                            next_seg = next_seg.squeeze(-1)
                         
                         action = actions[env_idx].cpu().numpy()
+                        reward = rewards[env_idx].cpu().numpy()
+                        terminated = terminations[env_idx].cpu().numpy()
+                        truncated = truncations[env_idx].cpu().numpy()
                         
-                        # Save the data
-                        self.save_step_data(step_count, env_idx, rgb_image, segmentation_mask, action)
+                        # Save the complete (s, a, r, s', done) tuple
+                        self.save_step_data(
+                            step_count, env_idx, 
+                            current_rgb, current_seg,
+                            next_rgb, next_seg,
+                            action, reward, terminated, truncated, infos
+                        )
                         saved_count += 1
                         step_count += 1
                         pbar.update(1)
@@ -371,17 +438,18 @@ class DataCollector:
         # Final metadata save
         self.save_metadata()
         print(f"\nData collection complete!")
-        print(f"Total images saved: {saved_count}")
+        print(f"Total transitions saved: {saved_count}")
+        print(f"Total episodes completed: {self.episode_count}")
         print(f"Data saved to: {self.base_dir}")
 
     def save_metadata(self):
         """Save metadata to JSON file"""
-        metadata_path = os.path.join(self.metadata_dir, "collection_metadata.json")
+        metadata_path = os.path.join(self.metadata_dir, "enhanced_collection_metadata.json")
         
         # Add collection info
         self.metadata["collection_info"] = {
-            "total_images": len(self.metadata["images"]),
-            "total_segmentation_masks": len(self.metadata["segmentation_masks"]),
+            "total_transitions": len(self.metadata["images"]),
+            "total_episodes": self.episode_count,
             "collection_time": time.strftime("%Y-%m-%d %H:%M:%S"),
             "args": vars(self.args)
         }
@@ -399,21 +467,16 @@ class DataCollector:
             json.dump(self.metadata, f, indent=2)
         
         print(f"Metadata saved to: {metadata_path}")
-        
-        # Also save segmentation ID map separately for easy reference
-        seg_map_path = os.path.join(self.metadata_dir, "segmentation_id_map.json")
-        with open(seg_map_path, 'w') as f:
-            json.dump(segmentation_map, f, indent=2)
-        print(f"Segmentation ID map saved to: {seg_map_path}")
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Collect RGB images and actions from ManiSkill environment")
+    parser = argparse.ArgumentParser(description="Collect enhanced RGB data with rewards from ManiSkill environment")
     parser.add_argument("target_dir", type=str, help="Directory to save collected data")
     parser.add_argument("--env_id", type=str, default="PickCube-v1", help="Environment ID")
     parser.add_argument("--total_steps", type=int, default=100000, help="Total steps to collect")
     parser.add_argument("--num_envs", type=int, default=8, help="Number of parallel environments")
     parser.add_argument("--control_mode", type=str, default="pd_joint_delta_pos", help="Control mode")
+    parser.add_argument("--reward_mode", type=str, default="dense", choices=["sparse", "dense", "normalized_dense", "none"], help="Reward mode")
     parser.add_argument("--seed", type=int, default=42, help="Random seed")
     parser.add_argument("--image_size", type=int, default=128, help="Image size (width and height)")
     parser.add_argument("--action_mode", type=str, default="random", choices=["random", "trained"], help="Action generation mode")
@@ -428,6 +491,7 @@ def main():
         total_steps=args.total_steps,
         num_envs=args.num_envs,
         control_mode=args.control_mode,
+        reward_mode=args.reward_mode,
         seed=args.seed,
         image_size=args.image_size,
         action_mode=args.action_mode,
@@ -435,7 +499,7 @@ def main():
     )
     
     # Create collector and run
-    collector = DataCollector(collection_args)
+    collector = EnhancedDataCollector(collection_args)
     collector.collect_data()
 
 
