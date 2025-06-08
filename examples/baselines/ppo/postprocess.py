@@ -60,11 +60,11 @@ def create_object_mask(seg_arr, obj_ids):
 
 def enhance_prompt(base_prompt, has_arm, has_cube):
     if has_arm and has_cube:
-        return base_prompt + " Fill in the spaces where the arm and cube were removed."
+        return base_prompt 
     if has_arm:
-        return base_prompt + " Fill in the space where the robotic arm was removed."
+        return base_prompt
     if has_cube:
-        return base_prompt + " Fill in the space where the cube was removed."
+        return base_prompt 
     return base_prompt
 
 
