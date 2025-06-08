@@ -110,14 +110,18 @@ def main():
         "masked_images": [],
         "edited_images": [],
         "actions": [],
+        "rewards": [],
+        "terminations": [],
+        "truncations": [],
         "arm_ids": arm_ids,
         "cube_ids": cube_ids,
         "prompt": args.prompt,
         "enhanced_prompt": enhanced,
     }
 
-    for img_rel, seg_rel, act in tqdm(
-        zip(orig_meta["images"], orig_meta["segmentation_masks"], orig_meta["actions"]),
+    for img_rel, seg_rel, act, rew, term, trunc in tqdm(
+        zip(orig_meta["images"], orig_meta["segmentation_masks"], orig_meta["actions"],
+            orig_meta["rewards"], orig_meta["terminations"], orig_meta["truncations"]),
         total=len(orig_meta["images"]), desc="Editing"
     ):
         # Load image and segmentation
@@ -164,6 +168,9 @@ def main():
         processed["original_images"].append(img_rel)
         processed["segmentation_masks"].append(seg_rel)
         processed["actions"].append(act)
+        processed["rewards"].append(rew)
+        processed["terminations"].append(term)
+        processed["truncations"].append(trunc)
         processed["masked_images"].append(f"masked_images/{fname}")
         processed["edited_images"].append(f"images/{fname}")
 
