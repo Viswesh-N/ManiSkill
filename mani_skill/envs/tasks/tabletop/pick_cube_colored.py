@@ -65,6 +65,16 @@ class RedTableSceneBuilder(ColoredTableSceneBuilder):
         super().__init__(env, robot_init_qpos_noise, table_color=[0.8, 0.2, 0.2, 1.0])  # Red
 
 
+class BlackTableSceneBuilder(ColoredTableSceneBuilder):
+    def __init__(self, env, robot_init_qpos_noise=0.02):
+        super().__init__(env, robot_init_qpos_noise, table_color=[0.1, 0.1, 0.1, 1.0])  # Black
+
+
+class GrayTableSceneBuilder(ColoredTableSceneBuilder):
+    def __init__(self, env, robot_init_qpos_noise=0.02):
+        super().__init__(env, robot_init_qpos_noise, table_color=[0.5, 0.5, 0.5, 1.0])  # Gray
+
+
 @register_env("PickCubeBlueTable-v1", max_episode_steps=50)
 class PickCubeBlueTableEnv(PickCubeEnv):
     """PickCube environment with blue table"""
@@ -177,7 +187,65 @@ class PickCubeRedTableEnv(PickCubeEnv):
         self._hidden_objects.append(self.goal_site)
 
 
+@register_env("PickCubeBlackTable-v1", max_episode_steps=50)
+class PickCubeBlackTableEnv(PickCubeEnv):
+    """PickCube environment with black table"""
+    
+    def _load_scene(self, options: dict):
+        self.table_scene = BlackTableSceneBuilder(
+            self, robot_init_qpos_noise=self.robot_init_qpos_noise
+        )
+        self.table_scene.build()
+        self.cube = actors.build_cube(
+            self.scene,
+            half_size=self.cube_half_size,
+            color=[1, 0, 0, 1],
+            name="cube",
+            initial_pose=sapien.Pose(p=[0, 0, self.cube_half_size]),
+        )
+        self.goal_site = actors.build_sphere(
+            self.scene,
+            radius=self.goal_thresh,
+            color=[0, 1, 0, 1],
+            name="goal_site",
+            body_type="kinematic",
+            add_collision=False,
+            initial_pose=sapien.Pose(),
+        )
+        self._hidden_objects.append(self.goal_site)
+
+
+@register_env("PickCubeGrayTable-v1", max_episode_steps=50)
+class PickCubeGrayTableEnv(PickCubeEnv):
+    """PickCube environment with gray table"""
+    
+    def _load_scene(self, options: dict):
+        self.table_scene = GrayTableSceneBuilder(
+            self, robot_init_qpos_noise=self.robot_init_qpos_noise
+        )
+        self.table_scene.build()
+        self.cube = actors.build_cube(
+            self.scene,
+            half_size=self.cube_half_size,
+            color=[1, 0, 0, 1],
+            name="cube",
+            initial_pose=sapien.Pose(p=[0, 0, self.cube_half_size]),
+        )
+        self.goal_site = actors.build_sphere(
+            self.scene,
+            radius=self.goal_thresh,
+            color=[0, 1, 0, 1],
+            name="goal_site",
+            body_type="kinematic",
+            add_collision=False,
+            initial_pose=sapien.Pose(),
+        )
+        self._hidden_objects.append(self.goal_site)
+
+
 PickCubeBlueTableEnv.__doc__ = PICK_CUBE_DOC_STRING.format(robot_id="Panda") + "\n\n**Visual Variant:** Blue table surface."
 PickCubeYellowTableEnv.__doc__ = PICK_CUBE_DOC_STRING.format(robot_id="Panda") + "\n\n**Visual Variant:** Yellow table surface."
 PickCubeGreenTableEnv.__doc__ = PICK_CUBE_DOC_STRING.format(robot_id="Panda") + "\n\n**Visual Variant:** Green table surface."
-PickCubeRedTableEnv.__doc__ = PICK_CUBE_DOC_STRING.format(robot_id="Panda") + "\n\n**Visual Variant:** Red table surface." 
+PickCubeRedTableEnv.__doc__ = PICK_CUBE_DOC_STRING.format(robot_id="Panda") + "\n\n**Visual Variant:** Red table surface."
+PickCubeBlackTableEnv.__doc__ = PICK_CUBE_DOC_STRING.format(robot_id="Panda") + "\n\n**Visual Variant:** Black table surface."
+PickCubeGrayTableEnv.__doc__ = PICK_CUBE_DOC_STRING.format(robot_id="Panda") + "\n\n**Visual Variant:** Gray table surface." 

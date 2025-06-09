@@ -7,7 +7,9 @@ from .pick_cube_colored import (
     PickCubeBlueTableEnv, 
     PickCubeYellowTableEnv, 
     PickCubeGreenTableEnv, 
-    PickCubeRedTableEnv
+    PickCubeRedTableEnv,
+    PickCubeBlackTableEnv,
+    PickCubeGrayTableEnv
 )
 from .pick_single_ycb import PickSingleYCBEnv
 from .plug_charger import PlugChargerEnv
