@@ -65,9 +65,40 @@ class SyntheticDataLoader:
             
             # Create observation dict matching TDMPC2 format
             if self.cfg.obs == 'rgb':
-                obs = {'rgb': torch.from_numpy(image).float().permute(2, 0, 1) / 255.0}
+                # Convert to tensor and normalize
+                rgb_tensor = torch.from_numpy(image).float().permute(2, 0, 1) / 255.0  # [3, H, W]
+                
+                # Auto-detect expected channels from config if available
+                expected_channels = None
+                if hasattr(self.cfg, 'obs_shape') and 'rgb' in self.cfg.obs_shape:
+                    expected_channels = self.cfg.obs_shape['rgb'][0]  # First dimension is channels
+                
+                if expected_channels is not None and expected_channels > 3:
+                    # Frame stacking is expected - repeat the frame to match expected channels
+                    num_repeats = expected_channels // 3
+                    rgb_stacked = rgb_tensor.repeat(num_repeats, 1, 1)  # [expected_channels, H, W]
+                    obs = {'rgb': rgb_stacked}
+                else:
+                    # No frame stacking or single frame expected
+                    obs = {'rgb': rgb_tensor}
             else:
-                obs = torch.from_numpy(image).float().permute(2, 0, 1) / 255.0
+                # Handle tensor observations (non-dict)
+                rgb_tensor = torch.from_numpy(image).float().permute(2, 0, 1) / 255.0  # [3, H, W]
+                
+                # Auto-detect expected channels from config if available
+                expected_channels = None
+                if hasattr(self.cfg, 'obs_shape'):
+                    obs_key = self.cfg.get('obs', 'state')
+                    if obs_key in self.cfg.obs_shape:
+                        expected_channels = self.cfg.obs_shape[obs_key][0]  # First dimension is channels
+                
+                if expected_channels is not None and expected_channels > 3:
+                    # Frame stacking is expected - repeat the frame to match expected channels
+                    num_repeats = expected_channels // 3
+                    obs = rgb_tensor.repeat(num_repeats, 1, 1)  # [expected_channels, H, W]
+                else:
+                    # No frame stacking or single frame expected
+                    obs = rgb_tensor
             
             step_data = {
                 'obs': obs,
