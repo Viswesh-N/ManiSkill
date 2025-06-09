@@ -6,6 +6,7 @@ from PIL import Image
 from pathlib import Path
 from tensordict.tensordict import TensorDict
 import copy
+import torchvision.transforms as transforms
 
 
 class SyntheticDataLoader:
@@ -45,6 +46,12 @@ class SyntheticDataLoader:
         
         episode_length = self.cfg.episode_length if hasattr(self.cfg, 'episode_length') else 50
         
+        # Get expected image size from config
+        expected_size = getattr(self.cfg, 'render_size', 64)
+        
+        # Create resize transform if needed
+        resize_transform = transforms.Resize((expected_size, expected_size), antialias=True)
+        
         current_seq = []
         for i in range(self.num_samples):
             # Load image
@@ -57,6 +64,16 @@ class SyntheticDataLoader:
             elif len(image.shape) == 3 and image.shape[2] == 4:  # RGBA
                 image = image[:, :, :3]  # Remove alpha channel
             
+            # Convert to tensor for resizing
+            image_tensor = torch.from_numpy(image).float().permute(2, 0, 1)  # [C, H, W]
+            
+            # Resize if needed
+            if image_tensor.shape[-1] != expected_size or image_tensor.shape[-2] != expected_size:
+                image_tensor = resize_transform(image_tensor)
+            
+            # Normalize to [0, 1]
+            image_tensor = image_tensor / 255.0
+            
             # Get action, reward, termination data
             action = np.array(self.metadata["actions"][i])
             reward = self.metadata["rewards"][i] if "rewards" in self.metadata else 0.0
@@ -65,9 +82,6 @@ class SyntheticDataLoader:
             
             # Create observation dict matching TDMPC2 format
             if self.cfg.obs == 'rgb':
-                # Convert to tensor and normalize
-                rgb_tensor = torch.from_numpy(image).float().permute(2, 0, 1) / 255.0  # [3, H, W]
-                
                 # Auto-detect expected channels from config if available
                 expected_channels = None
                 if hasattr(self.cfg, 'obs_shape') and 'rgb' in self.cfg.obs_shape:
@@ -76,15 +90,13 @@ class SyntheticDataLoader:
                 if expected_channels is not None and expected_channels > 3:
                     # Frame stacking is expected - repeat the frame to match expected channels
                     num_repeats = expected_channels // 3
-                    rgb_stacked = rgb_tensor.repeat(num_repeats, 1, 1)  # [expected_channels, H, W]
+                    rgb_stacked = image_tensor.repeat(num_repeats, 1, 1)  # [expected_channels, H, W]
                     obs = {'rgb': rgb_stacked}
                 else:
                     # No frame stacking or single frame expected
-                    obs = {'rgb': rgb_tensor}
+                    obs = {'rgb': image_tensor}
             else:
                 # Handle tensor observations (non-dict)
-                rgb_tensor = torch.from_numpy(image).float().permute(2, 0, 1) / 255.0  # [3, H, W]
-                
                 # Auto-detect expected channels from config if available
                 expected_channels = None
                 if hasattr(self.cfg, 'obs_shape'):
@@ -95,10 +107,10 @@ class SyntheticDataLoader:
                 if expected_channels is not None and expected_channels > 3:
                     # Frame stacking is expected - repeat the frame to match expected channels
                     num_repeats = expected_channels // 3
-                    obs = rgb_tensor.repeat(num_repeats, 1, 1)  # [expected_channels, H, W]
+                    obs = image_tensor.repeat(num_repeats, 1, 1)  # [expected_channels, H, W]
                 else:
                     # No frame stacking or single frame expected
-                    obs = rgb_tensor
+                    obs = image_tensor
             
             step_data = {
                 'obs': obs,
@@ -122,6 +134,16 @@ class SyntheticDataLoader:
         
         self.sequences = sequences
         print(f"Created {len(self.sequences)} synthetic episodes")
+        
+        # Debug: Print sample observation shape
+        if len(self.sequences) > 0 and len(self.sequences[0]) > 0:
+            sample_obs = self.sequences[0][0]['obs']
+            if isinstance(sample_obs, dict):
+                for key, value in sample_obs.items():
+                    print(f"Synthetic data - {key} shape: {value.shape}")
+            else:
+                print(f"Synthetic data - obs shape: {sample_obs.shape}")
+            print(f"Expected render size: {expected_size}x{expected_size}")
     
     def sample_batch(self, batch_size):
         """Sample a batch of sequences for training"""
