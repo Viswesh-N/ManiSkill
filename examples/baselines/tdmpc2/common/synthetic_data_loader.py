@@ -65,7 +65,7 @@ class SyntheticDataLoader:
             
             # Create observation dict matching TDMPC2 format
             if self.cfg.obs == 'rgb':
-                obs = {'image': torch.from_numpy(image).float().permute(2, 0, 1) / 255.0}
+                obs = {'rgb': torch.from_numpy(image).float().permute(2, 0, 1) / 255.0}
             else:
                 obs = torch.from_numpy(image).float().permute(2, 0, 1) / 255.0
             

@@ -124,7 +124,7 @@ class MixedBuffer(Buffer):
 		if self.cfg.obs == 'rgb':
 			# Create dummy RGB observation
 			obs = TensorDict({
-				'image': torch.zeros((horizon + 1, batch_size, 3, 128, 128), device=self._device)
+				'rgb': torch.zeros((horizon + 1, batch_size, 3, 128, 128), device=self._device)
 			}, batch_size=(), device=self._device)
 		else:
 			# Create dummy state observation
