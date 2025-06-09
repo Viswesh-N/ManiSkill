@@ -26,7 +26,6 @@ class SyntheticDataLoader:
         self.cfg = cfg
         self.device = device
         
-        # Load metadata
         metadata_path = self.synthetic_data_dir / "metadata" / "processed_metadata.json"
         if not metadata_path.exists():
             raise FileNotFoundError(f"Synthetic data metadata not found: {metadata_path}")
@@ -37,15 +36,12 @@ class SyntheticDataLoader:
         self.num_samples = len(self.metadata["edited_images"])
         print(f"Loaded synthetic dataset with {self.num_samples} samples")
         
-        # Pre-process data into sequences for TDMPC2
         self._prepare_sequences()
     
     def _prepare_sequences(self):
         """Convert synthetic data into TDMPC2-compatible sequences"""
         sequences = []
         
-        # Group data into episodes based on episode boundaries
-        # For now, create artificial episodes of fixed length
         episode_length = self.cfg.episode_length if hasattr(self.cfg, 'episode_length') else 50
         
         current_seq = []
@@ -64,7 +60,6 @@ class SyntheticDataLoader:
             if self.cfg.obs == 'rgb':
                 obs = {'image': torch.from_numpy(image).float().permute(2, 0, 1) / 255.0}
             else:
-                # For other obs modes, you might need to adapt this
                 obs = torch.from_numpy(image).float().permute(2, 0, 1) / 255.0
             
             step_data = {
@@ -138,29 +133,34 @@ class SyntheticDataLoader:
             # Handle dict observations
             obs_batch = {}
             for key in sequences[0][0]['obs'].keys():
+                # Stack: [batch_size, seq_len, C, H, W] -> [seq_len, batch_size, C, H, W]
                 obs_stack = torch.stack([
                     torch.stack([step['obs'][key] for step in seq])
                     for seq in sequences
-                ]).permute(1, 0, *range(2, len(sequences[0][0]['obs'][key].shape) + 2))
+                ])  # Shape: [batch_size, seq_len, C, H, W]
+                obs_stack = obs_stack.permute(1, 0, 2, 3, 4)  # -> [seq_len, batch_size, C, H, W]
                 obs_batch[key] = obs_stack.to(self.device)
             obs = TensorDict(obs_batch, batch_size=(), device=self.device)
         else:
             # Handle tensor observations
-            obs = torch.stack([
+            obs_stack = torch.stack([
                 torch.stack([step['obs'] for step in seq])
                 for seq in sequences
-            ]).permute(1, 0, *range(2, len(sequences[0][0]['obs'].shape) + 1)).to(self.device)
+            ])  # Shape: [batch_size, seq_len, C, H, W]
+            obs = obs_stack.permute(1, 0, 2, 3, 4).to(self.device)  # -> [seq_len, batch_size, C, H, W]
         
         # Stack actions (excluding first timestep)
-        action = torch.stack([
+        action_stack = torch.stack([
             torch.stack([step['action'] for step in seq[1:]])
             for seq in sequences
-        ]).permute(1, 0, *range(2, len(sequences[0][0]['action'].shape) + 1)).to(self.device)
+        ])  # Shape: [batch_size, seq_len-1, action_dim]
+        action = action_stack.permute(1, 0, 2).to(self.device)  # -> [seq_len-1, batch_size, action_dim]
         
         # Stack rewards (excluding first timestep)
-        reward = torch.stack([
+        reward_stack = torch.stack([
             torch.stack([step['reward'] for step in seq[1:]])
             for seq in sequences
-        ]).permute(1, 0).unsqueeze(-1).to(self.device)
+        ])  # Shape: [batch_size, seq_len-1]
+        reward = reward_stack.permute(1, 0).unsqueeze(-1).to(self.device)  # -> [seq_len-1, batch_size, 1]
         
         return obs, action, reward 

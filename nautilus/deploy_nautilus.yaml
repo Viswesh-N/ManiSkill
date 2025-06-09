@@ -38,7 +38,7 @@ spec:
           fi
 
           # Install dependencies
-          pip install -r requirements.txt
+          pip install -e .
           pip install diffusers scipy torch
 
           
@@ -46,6 +46,7 @@ spec:
             --output-dir /pers_vol/data \
             --num-frames 1000 \
             --env-name PickCube-v1
+
 
           
           python examples/baselines/ppo/postprocess.py \

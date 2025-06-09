@@ -13,6 +13,11 @@ render_mode: rgb_array # ['rgb_array' for quality, or 'sensors' for speed]
 render_size: 64
 setting_tag: none # ['none', 'walltime_efficient', 'sample_efficient', ...] for wandb tags
 
+# synthetic data (optional)
+synthetic_data_dir: null # path to synthetic data directory
+synthetic_ratio: 0.2 # ratio of synthetic data in training batches (0.0 to 1.0)
+use_colored_eval: false # whether to use colored table variants for evaluation
+
 # evaluation
 checkpoint: ???
 eval_episodes_per_env: 2 # total (eval_episodes_per_env * num_eval_envs number) of eval episodes
