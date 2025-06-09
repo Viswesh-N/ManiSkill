@@ -225,6 +225,7 @@ class SyntheticDataLoader:
                 # Stack to get [horizon+1, batch_size, ...]
                 obs_batch[key] = torch.stack(key_tensors).to(self.device)
             
+            # Create TensorDict to match the format from real buffer
             obs = TensorDict(obs_batch, batch_size=(), device=self.device)
         else:
             # Handle tensor observations
