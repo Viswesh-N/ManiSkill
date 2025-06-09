@@ -39,12 +39,15 @@ class MixedBuffer(Buffer):
 			synthetic_batch_size = int(total_batch_size * self.synthetic_ratio)
 			buffer_batch_size = total_batch_size - synthetic_batch_size
 			
+			print(f"DEBUG: total_batch_size={total_batch_size}, synthetic_batch_size={synthetic_batch_size}, buffer_batch_size={buffer_batch_size}")
+			
 			samples = []
 			
 			# Sample from replay buffer
 			if buffer_batch_size > 0:
 				# Temporarily adjust batch size for buffer sampling
 				original_batch_size = self._batch_size
+				original_sampler = self._sampler
 				self._batch_size = buffer_batch_size * (self.cfg.horizon + 1)
 				self._sampler = SliceSampler(
 					num_slices=buffer_batch_size,
@@ -56,22 +59,18 @@ class MixedBuffer(Buffer):
 				
 				buffer_td = self._buffer.sample().view(-1, self.cfg.horizon+1).permute(1, 0)
 				buffer_sample = self._prepare_batch(buffer_td)
+				print(f"DEBUG: buffer sample obs shape: {buffer_sample[0].shape if not isinstance(buffer_sample[0], TensorDict) else buffer_sample[0]['rgb'].shape if 'rgb' in buffer_sample[0] else 'TensorDict'}")
 				samples.append(('buffer', buffer_sample))
 				
 				# Restore original settings
 				self._batch_size = original_batch_size
-				self._sampler = SliceSampler(
-					num_slices=self.cfg.batch_size,
-					end_key=None,
-					traj_key='episode',
-					truncated_key=None,
-					strict_length=True,
-				)
+				self._sampler = original_sampler
 			
 			# Sample from synthetic data
 			if synthetic_batch_size > 0:
 				synthetic_sample = self.synthetic_data_loader.sample_batch(synthetic_batch_size)
 				if synthetic_sample is not None:
+					print(f"DEBUG: synthetic sample obs shape: {synthetic_sample[0].shape if not isinstance(synthetic_sample[0], TensorDict) else synthetic_sample[0]['rgb'].shape if 'rgb' in synthetic_sample[0] else 'TensorDict'}")
 					samples.append(('synthetic', synthetic_sample))
 			
 			# Combine samples
@@ -148,6 +147,11 @@ class MixedBuffer(Buffer):
 		combined_action = torch.cat(action_list, dim=1)
 		combined_reward = torch.cat(reward_list, dim=1)
 		combined_task = torch.cat(task_list, dim=1) if task_list else None
+		
+		# Debug: Print final combined shapes
+		print(f"DEBUG: Final combined obs shape: {combined_obs.shape if not isinstance(combined_obs, TensorDict) else combined_obs['rgb'].shape if 'rgb' in combined_obs else 'TensorDict'}")
+		print(f"DEBUG: Final combined action shape: {combined_action.shape}")
+		print(f"DEBUG: Final combined reward shape: {combined_reward.shape}")
 		
 		return combined_obs, combined_action, combined_reward, combined_task
 
