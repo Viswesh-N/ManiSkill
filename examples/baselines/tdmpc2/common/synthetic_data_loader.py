@@ -5,6 +5,7 @@ import numpy as np
 from PIL import Image
 from pathlib import Path
 from tensordict.tensordict import TensorDict
+import copy
 
 
 class SyntheticDataLoader:
@@ -49,6 +50,12 @@ class SyntheticDataLoader:
             # Load image
             img_path = self.synthetic_data_dir / self.metadata["edited_images"][i]
             image = np.array(Image.open(img_path))
+            
+            # Ensure image has 3 dimensions (H, W, C)
+            if len(image.shape) == 2:  # Grayscale
+                image = np.stack([image] * 3, axis=-1)
+            elif len(image.shape) == 3 and image.shape[2] == 4:  # RGBA
+                image = image[:, :, :3]  # Remove alpha channel
             
             # Get action, reward, termination data
             action = np.array(self.metadata["actions"][i])
@@ -104,8 +111,9 @@ class SyntheticDataLoader:
                     # Pad with the last observation
                     padded_episode = episode[:]
                     while len(padded_episode) <= self.cfg.horizon + 1:
-                        # Duplicate last step but with zero reward and no termination
-                        last_step = padded_episode[-1].copy()
+                        # Create a proper deep copy of the last step
+                        last_step = copy.deepcopy(episode[-1])
+                        # Modify the copied tensors (create new tensors to avoid reference issues)
                         last_step['reward'] = torch.tensor(0.0).float()
                         last_step['terminated'] = torch.tensor(False).bool()
                         last_step['truncated'] = torch.tensor(False).bool()
@@ -199,4 +207,5 @@ class SyntheticDataLoader:
         # Stack to get [horizon, batch_size, 1]
         reward = torch.stack(reward_tensors).unsqueeze(-1).to(self.device)
         
-        return obs, action, reward 
+        # Return task=None to match expected format (obs, action, reward, task)
+        return obs, action, reward, None 
