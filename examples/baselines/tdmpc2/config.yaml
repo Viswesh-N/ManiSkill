@@ -38,7 +38,7 @@ tau: 0.01
 discount_denom: 5
 discount_min: 0.95
 discount_max: 0.995
-buffer_size: 1_000_000
+buffer_size: 500_000
 exp_name: default
 data_dir: ???
 steps_per_update: 1
