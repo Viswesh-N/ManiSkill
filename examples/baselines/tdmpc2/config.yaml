@@ -13,16 +13,16 @@ render_mode: rgb_array # ['rgb_array' for quality, or 'sensors' for speed]
 render_size: 64
 setting_tag: none # ['none', 'walltime_efficient', 'sample_efficient', ...] for wandb tags
 
-# synthetic data (optional)
-synthetic_data_dir: /home/ubuntu/projects/shresh/open-pi-zero/data_outputs # path to synthetic data directory
-synthetic_ratio: 0.2 # ratio of synthetic data in training batches (0.0 to 1.0)
-use_colored_eval: true # whether to use colored table variants for evaluation
-
 # evaluation
 checkpoint: ???
 eval_episodes_per_env: 2 # total (eval_episodes_per_env * num_eval_envs number) of eval episodes
 eval_freq: 50000
 eval_reconfiguration_frequency: 1
+
+
+synthetic_data_dir: /home/ubuntu/projects/shresh/open-pi-zero/data_outputs 
+synthetic_ratio: 0.2 # 20% synthetic data, 80% from replay buffer
+use_colored_eval: true # Use colored table variants for evaluation
 
 # training
 steps: 1_000_000
