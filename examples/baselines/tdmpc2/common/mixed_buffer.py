@@ -93,11 +93,46 @@ class MixedBuffer(Buffer):
 		obs_list, action_list, reward_list, task_list = [], [], [], []
 		
 		for source, (obs, action, reward, task) in samples:
+			print(f"DEBUG: {source} obs type: {type(obs)}")
+			if hasattr(obs, 'keys'):
+				print(f"DEBUG: {source} obs keys: {list(obs.keys())}")
+				if hasattr(obs, 'batch_size'):
+					print(f"DEBUG: {source} obs batch_size: {obs.batch_size}")
+				if hasattr(obs, 'device'):
+					print(f"DEBUG: {source} obs device: {obs.device}")
+			elif hasattr(obs, 'device'):
+				print(f"DEBUG: {source} obs device: {obs.device}")
 			obs_list.append(obs)
 			action_list.append(action)
 			reward_list.append(reward)
 			if task is not None:
 				task_list.append(task)
+		
+		print(f"DEBUG: obs_list types: {[type(obs) for obs in obs_list]}")
+		print(f"DEBUG: isinstance(obs_list[0], TensorDict): {isinstance(obs_list[0], TensorDict)}")
+		
+		# Ensure all observations have the same type
+		first_obs_is_tensordict = isinstance(obs_list[0], TensorDict)
+		
+		# Convert all observations to TensorDict if needed for consistency
+		for i, obs in enumerate(obs_list):
+			if first_obs_is_tensordict and not isinstance(obs, TensorDict):
+				# Convert tensor to TensorDict to match first observation
+				print(f"DEBUG: Converting obs {i} from tensor to TensorDict")
+				obs_list[i] = TensorDict({'obs': obs}, batch_size=(), device=obs.device)
+			elif not first_obs_is_tensordict and isinstance(obs, TensorDict):
+				# Extract tensor from TensorDict to match first observation
+				print(f"DEBUG: Converting obs {i} from TensorDict to tensor")
+				if 'rgb' in obs.keys():
+					obs_list[i] = obs['rgb']
+				elif len(obs.keys()) == 1:
+					# If there's only one key, use that
+					key = list(obs.keys())[0]
+					obs_list[i] = obs[key]
+				else:
+					# Fallback: try to get a tensor representation
+					print(f"DEBUG: Multiple keys in TensorDict: {list(obs.keys())}")
+					raise ValueError(f"Cannot convert TensorDict with multiple keys to tensor: {list(obs.keys())}")
 		
 		# Concatenate along batch dimension
 		if isinstance(obs_list[0], TensorDict):

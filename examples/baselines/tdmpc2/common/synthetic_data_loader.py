@@ -99,15 +99,15 @@ class SyntheticDataLoader:
                     # Generate dummy state data that matches expected dimensions
                     if hasattr(self.cfg, 'obs_shape') and 'rgb-state' in self.cfg.obs_shape:
                         state_shape = self.cfg.obs_shape['rgb-state']
-                        # Create dummy state data (zeros for now)
-                        dummy_state = torch.zeros(state_shape, dtype=torch.float32)
+                        # Create dummy state data (zeros for now) on the same device as image_tensor
+                        dummy_state = torch.zeros(state_shape, dtype=torch.float32, device=image_tensor.device)
                         obs['rgb-state'] = dummy_state
                     else:
                         # Fallback: create a reasonable dummy state size (common ManiSkill state sizes)
                         # Default to a typical state size with frame stacking
                         state_dim = 32  # Typical robot state dimension
                         num_frames = expected_channels // 3 if expected_channels and expected_channels > 3 else 3
-                        dummy_state = torch.zeros(state_dim * num_frames, dtype=torch.float32)
+                        dummy_state = torch.zeros(state_dim * num_frames, dtype=torch.float32, device=image_tensor.device)
                         obs['rgb-state'] = dummy_state
             else:
                 # Handle tensor observations (non-dict)
@@ -226,7 +226,7 @@ class SyntheticDataLoader:
                 obs_batch[key] = torch.stack(key_tensors).to(self.device)
             
             # Create TensorDict to match the format from real buffer
-            obs = TensorDict(obs_batch, batch_size=(), device=self.device)
+            obs = TensorDict(obs_batch, batch_size=(horizon+1, batch_size), device=self.device)
         else:
             # Handle tensor observations
             obs_tensors = []
