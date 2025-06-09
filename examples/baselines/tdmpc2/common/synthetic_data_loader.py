@@ -225,8 +225,13 @@ class SyntheticDataLoader:
                 # Stack to get [horizon+1, batch_size, ...]
                 obs_batch[key] = torch.stack(key_tensors).to(self.device)
             
-            # Create TensorDict to match the format from real buffer
-            obs = TensorDict(obs_batch, batch_size=(horizon+1, batch_size), device=self.device)
+            # Check if we should return a TensorDict or extract the main observation
+            # If there's only one key (just 'rgb'), extract it as tensor to match buffer behavior
+            if len(obs_batch.keys()) == 1 and 'rgb' in obs_batch:
+                obs = obs_batch['rgb']  # Return tensor directly
+            else:
+                # Create TensorDict when multiple keys exist (e.g., rgb + rgb-state)
+                obs = TensorDict(obs_batch, batch_size=(horizon+1, batch_size), device=self.device)
         else:
             # Handle tensor observations
             obs_tensors = []

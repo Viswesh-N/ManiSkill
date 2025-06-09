@@ -59,6 +59,7 @@ class MixedBuffer(Buffer):
 				
 				buffer_td = self._buffer.sample().view(-1, self.cfg.horizon+1).permute(1, 0)
 				buffer_sample = self._prepare_batch(buffer_td)
+				buffer_sample = tuple(buffer_sample)  # Convert generator to tuple
 				print(f"DEBUG: buffer sample obs shape: {buffer_sample[0].shape if not isinstance(buffer_sample[0], TensorDict) else buffer_sample[0]['rgb'].shape if 'rgb' in buffer_sample[0] else 'TensorDict'}")
 				samples.append(('buffer', buffer_sample))
 				
@@ -92,33 +93,43 @@ class MixedBuffer(Buffer):
 		obs_list, action_list, reward_list, task_list = [], [], [], []
 		
 		for source, (obs, action, reward, task) in samples:
-			print(f"DEBUG: {source} obs type: {type(obs)}")
-			if hasattr(obs, 'keys'):
-				print(f"DEBUG: {source} obs keys: {list(obs.keys())}")
-				if hasattr(obs, 'batch_size'):
-					print(f"DEBUG: {source} obs batch_size: {obs.batch_size}")
-				if hasattr(obs, 'device'):
-					print(f"DEBUG: {source} obs device: {obs.device}")
-			elif hasattr(obs, 'device'):
-				print(f"DEBUG: {source} obs device: {obs.device}")
+			print(f"DEBUG: {source} sample structure:")
+			print(f"  obs type: {type(obs)}")
+			if isinstance(obs, TensorDict):
+				print(f"  obs keys: {list(obs.keys())}")
+				print(f"  obs batch_size: {obs.batch_size}")
+				print(f"  obs device: {obs.device}")
+				# Print shape of each key
+				for key in obs.keys():
+					print(f"  obs[{key}] shape: {obs[key].shape}")
+			else:
+				print(f"  obs shape: {obs.shape}")
+				print(f"  obs device: {obs.device}")
+			print(f"  action shape: {action.shape}")
+			print(f"  reward shape: {reward.shape}")
+			
 			obs_list.append(obs)
 			action_list.append(action)
 			reward_list.append(reward)
 			if task is not None:
 				task_list.append(task)
 		
-		print(f"DEBUG: obs_list types: {[type(obs) for obs in obs_list]}")
-		print(f"DEBUG: isinstance(obs_list[0], TensorDict): {isinstance(obs_list[0], TensorDict)}")
-		
 		# Ensure all observations have the same type
 		first_obs_is_tensordict = isinstance(obs_list[0], TensorDict)
+		print(f"DEBUG: first_obs_is_tensordict: {first_obs_is_tensordict}")
 		
-		# Convert all observations to TensorDict if needed for consistency
+		# Convert all observations to match the first observation type
 		for i, obs in enumerate(obs_list):
 			if first_obs_is_tensordict and not isinstance(obs, TensorDict):
 				# Convert tensor to TensorDict to match first observation
 				print(f"DEBUG: Converting obs {i} from tensor to TensorDict")
-				obs_list[i] = TensorDict({'obs': obs}, batch_size=(), device=obs.device)
+				# Determine the structure based on cfg.obs
+				if self.cfg.obs == 'rgb':
+					# For RGB observations, create a TensorDict with 'rgb' key
+					obs_list[i] = TensorDict({'rgb': obs}, batch_size=obs.shape[:2], device=obs.device)
+				else:
+					# For state observations, create a TensorDict with generic key
+					obs_list[i] = TensorDict({'obs': obs}, batch_size=obs.shape[:2], device=obs.device)
 			elif not first_obs_is_tensordict and isinstance(obs, TensorDict):
 				# Extract tensor from TensorDict to match first observation
 				print(f"DEBUG: Converting obs {i} from TensorDict to tensor")
@@ -129,17 +140,26 @@ class MixedBuffer(Buffer):
 					key = list(obs.keys())[0]
 					obs_list[i] = obs[key]
 				else:
-					# Fallback: try to get a tensor representation
+					# Multiple keys - need to decide which to use or concatenate
 					print(f"DEBUG: Multiple keys in TensorDict: {list(obs.keys())}")
-					raise ValueError(f"Cannot convert TensorDict with multiple keys to tensor: {list(obs.keys())}")
+					# For now, prioritize 'rgb' if it exists, otherwise concatenate
+					if 'rgb' in obs.keys():
+						obs_list[i] = obs['rgb']
+					else:
+						# Concatenate all values along the last dimension
+						tensors_to_cat = [obs[key] for key in sorted(obs.keys())]
+						obs_list[i] = torch.cat(tensors_to_cat, dim=-1)
 		
-		# Concatenate along batch dimension
+		# Concatenate along batch dimension (dim=1 for [T, B, ...] format)
 		if isinstance(obs_list[0], TensorDict):
 			# Handle dict observations
 			combined_obs = {}
 			for key in obs_list[0].keys():
 				combined_obs[key] = torch.cat([obs[key] for obs in obs_list], dim=1)
-			combined_obs = TensorDict(combined_obs, batch_size=(), device=self._device)
+			# Use the batch_size from the first observation but update the batch dimension
+			first_batch_size = list(obs_list[0].batch_size)
+			first_batch_size[1] = sum(obs.batch_size[1] for obs in obs_list)  # Sum batch dimensions
+			combined_obs = TensorDict(combined_obs, batch_size=tuple(first_batch_size), device=self._device)
 		else:
 			# Handle tensor observations
 			combined_obs = torch.cat(obs_list, dim=1)
@@ -149,9 +169,15 @@ class MixedBuffer(Buffer):
 		combined_task = torch.cat(task_list, dim=1) if task_list else None
 		
 		# Debug: Print final combined shapes
-		print(f"DEBUG: Final combined obs shape: {combined_obs.shape if not isinstance(combined_obs, TensorDict) else combined_obs['rgb'].shape if 'rgb' in combined_obs else 'TensorDict'}")
-		print(f"DEBUG: Final combined action shape: {combined_action.shape}")
-		print(f"DEBUG: Final combined reward shape: {combined_reward.shape}")
+		print(f"DEBUG: Final combined shapes:")
+		if isinstance(combined_obs, TensorDict):
+			print(f"  obs type: TensorDict with batch_size: {combined_obs.batch_size}")
+			for key in combined_obs.keys():
+				print(f"  obs[{key}] shape: {combined_obs[key].shape}")
+		else:
+			print(f"  obs shape: {combined_obs.shape}")
+		print(f"  action shape: {combined_action.shape}")
+		print(f"  reward shape: {combined_reward.shape}")
 		
 		return combined_obs, combined_action, combined_reward, combined_task
 
