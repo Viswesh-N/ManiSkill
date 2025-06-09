@@ -124,43 +124,79 @@ class SyntheticDataLoader:
         return self._convert_to_tdmpc2_format(batch_sequences)
     
     def _convert_to_tdmpc2_format(self, sequences):
-        """Convert sequences to TDMPC2's expected format"""
+        """Convert sequences to TDMPC2's expected format to match regular buffer output"""
         batch_size = len(sequences)
-        seq_len = len(sequences[0])
+        horizon = self.cfg.horizon
         
-        # Stack observations
+        # Stack observations - need all timesteps (horizon+1 total)
         if self.cfg.obs == 'rgb':
             # Handle dict observations
             obs_batch = {}
             for key in sequences[0][0]['obs'].keys():
-                # Stack: [batch_size, seq_len, C, H, W] -> [seq_len, batch_size, C, H, W]
-                obs_stack = torch.stack([
-                    torch.stack([step['obs'][key] for step in seq])
-                    for seq in sequences
-                ])  # Shape: [batch_size, seq_len, C, H, W]
-                obs_stack = obs_stack.permute(1, 0, 2, 3, 4)  # -> [seq_len, batch_size, C, H, W]
-                obs_batch[key] = obs_stack.to(self.device)
+                # Collect observations for all timesteps
+                key_tensors = []
+                for t in range(horizon + 1):
+                    timestep_tensors = []
+                    for seq in sequences:
+                        if t < len(seq):
+                            timestep_tensors.append(seq[t]['obs'][key])
+                        else:
+                            # Pad with last observation if sequence is shorter
+                            timestep_tensors.append(seq[-1]['obs'][key])
+                    key_tensors.append(torch.stack(timestep_tensors))  # [batch_size, ...]
+                
+                # Stack to get [horizon+1, batch_size, ...]
+                obs_batch[key] = torch.stack(key_tensors).to(self.device)
+            
             obs = TensorDict(obs_batch, batch_size=(), device=self.device)
         else:
             # Handle tensor observations
-            obs_stack = torch.stack([
-                torch.stack([step['obs'] for step in seq])
-                for seq in sequences
-            ])  # Shape: [batch_size, seq_len, C, H, W]
-            obs = obs_stack.permute(1, 0, 2, 3, 4).to(self.device)  # -> [seq_len, batch_size, C, H, W]
+            obs_tensors = []
+            for t in range(horizon + 1):
+                timestep_tensors = []
+                for seq in sequences:
+                    if t < len(seq):
+                        timestep_tensors.append(seq[t]['obs'])
+                    else:
+                        # Pad with last observation if sequence is shorter
+                        timestep_tensors.append(seq[-1]['obs'])
+                obs_tensors.append(torch.stack(timestep_tensors))  # [batch_size, ...]
+            
+            # Stack to get [horizon+1, batch_size, ...]
+            obs = torch.stack(obs_tensors).to(self.device)
         
-        # Stack actions (excluding first timestep)
-        action_stack = torch.stack([
-            torch.stack([step['action'] for step in seq[1:]])
-            for seq in sequences
-        ])  # Shape: [batch_size, seq_len-1, action_dim]
-        action = action_stack.permute(1, 0, 2).to(self.device)  # -> [seq_len-1, batch_size, action_dim]
+        # Stack actions - need horizon timesteps (skip first observation)
+        action_tensors = []
+        for t in range(horizon):
+            timestep_actions = []
+            for seq in sequences:
+                # Actions start from timestep 1 (after first observation)
+                action_idx = t + 1
+                if action_idx < len(seq):
+                    timestep_actions.append(seq[action_idx]['action'])
+                else:
+                    # Pad with last action if sequence is shorter
+                    timestep_actions.append(seq[-1]['action'])
+            action_tensors.append(torch.stack(timestep_actions))  # [batch_size, action_dim]
         
-        # Stack rewards (excluding first timestep)
-        reward_stack = torch.stack([
-            torch.stack([step['reward'] for step in seq[1:]])
-            for seq in sequences
-        ])  # Shape: [batch_size, seq_len-1]
-        reward = reward_stack.permute(1, 0).unsqueeze(-1).to(self.device)  # -> [seq_len-1, batch_size, 1]
+        # Stack to get [horizon, batch_size, action_dim]
+        action = torch.stack(action_tensors).to(self.device)
+        
+        # Stack rewards - need horizon timesteps (skip first observation)
+        reward_tensors = []
+        for t in range(horizon):
+            timestep_rewards = []
+            for seq in sequences:
+                # Rewards start from timestep 1 (after first observation)
+                reward_idx = t + 1
+                if reward_idx < len(seq):
+                    timestep_rewards.append(seq[reward_idx]['reward'])
+                else:
+                    # Pad with zero reward if sequence is shorter
+                    timestep_rewards.append(torch.tensor(0.0).float())
+            reward_tensors.append(torch.stack(timestep_rewards))  # [batch_size]
+        
+        # Stack to get [horizon, batch_size, 1]
+        reward = torch.stack(reward_tensors).unsqueeze(-1).to(self.device)
         
         return obs, action, reward 
