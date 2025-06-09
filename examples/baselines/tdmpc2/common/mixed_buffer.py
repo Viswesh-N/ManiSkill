@@ -45,27 +45,18 @@ class MixedBuffer(Buffer):
 			
 			# Sample from replay buffer
 			if buffer_batch_size > 0:
-				# Temporarily adjust batch size for buffer sampling
-				original_batch_size = self._batch_size
-				original_sampler = self._sampler
-				self._batch_size = buffer_batch_size * (self.cfg.horizon + 1)
-				self._sampler = SliceSampler(
-					num_slices=buffer_batch_size,
-					end_key=None,
-					traj_key='episode',
-					truncated_key=None,
-					strict_length=True,
-				)
-				
+				# Sample full batch from buffer, then slice to desired size
 				buffer_td = self._buffer.sample().view(-1, self.cfg.horizon+1).permute(1, 0)
-				buffer_sample = self._prepare_batch(buffer_td)
-				buffer_sample = tuple(buffer_sample)  # Convert generator to tuple
-				print(f"DEBUG: buffer sample obs shape: {buffer_sample[0].shape if not isinstance(buffer_sample[0], TensorDict) else buffer_sample[0]['rgb'].shape if 'rgb' in buffer_sample[0] else 'TensorDict'}")
-				samples.append(('buffer', buffer_sample))
+				# Manually slice to the correct batch size
+				if buffer_td.shape[1] > buffer_batch_size:
+					# Randomly select buffer_batch_size samples from the full batch
+					indices = torch.randperm(buffer_td.shape[1])[:buffer_batch_size]
+					buffer_td = buffer_td[:, indices]
 				
-				# Restore original settings
-				self._batch_size = original_batch_size
-				self._sampler = original_sampler
+				buffer_sample = self._prepare_batch(buffer_td)
+				buffer_sample = tuple(buffer_sample)  
+				print(f"DEBUG: buffer sample obs shape after slicing: {buffer_sample[0].shape if not isinstance(buffer_sample[0], TensorDict) else buffer_sample[0]['rgb'].shape if 'rgb' in buffer_sample[0] else 'TensorDict'}")
+				samples.append(('buffer', buffer_sample))
 			
 			# Sample from synthetic data
 			if synthetic_batch_size > 0:
