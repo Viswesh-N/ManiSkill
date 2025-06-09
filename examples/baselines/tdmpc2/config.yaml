@@ -2,7 +2,7 @@ defaults:
     - override hydra/launcher: submitit_local
 
 # environment
-env_id: PushCube-v1
+env_id: PickCube-v1
 obs: rgb
 control_mode: default # or pd_joint_delta_pos or pd_ee_delta_pose
 num_envs: 32
