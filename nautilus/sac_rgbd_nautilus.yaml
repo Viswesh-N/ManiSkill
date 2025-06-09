@@ -1,0 +1,83 @@
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: visweshn-sac-rgbd-baseline-128x128
+  namespace: ucsd-haosulab
+spec:
+  template:
+    spec:
+      restartPolicy: Never
+      containers:
+      - name: sac-rgbd-baseline-container
+        image: visweshnagaswamy/sphere-approx:latest
+        imagePullPolicy: Always
+        env:
+        - name: WANDB_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: wandb-secret
+              key: WANDB_API_KEY
+        - name: PYTHONPATH
+          value: /app
+        - name: GITHUB_PAT
+          valueFrom:
+            secretKeyRef:
+              name: github-secret
+              key: GITHUB_PAT
+        - name: seed
+          value: "1"              
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -eux
+          cd /app
+          # Clone or update sphere-approx repo
+          if [ ! -d .git ]; then
+            git clone https://github.com/Viswesh-N/Maniskill.git .
+          else
+            git stash || true
+            git pull origin main || true
+          fi
+
+          # Install deps
+          pip install -e .
+
+          # Run baseline SAC RGBD training (128x128 standard resolution)
+          python ManiSkill/examples/baselines/sac/sac_rgbd.py \
+            --env_id PickCube-v1 \
+            --seed ${seed} \
+            --total_timesteps 1000000 \
+            --num_envs 16 \
+            --num_eval_envs 16 \
+            --obs_mode rgbd \
+            --include_state true \
+            --policy_lr 3e-4 \
+            --q_lr 3e-4 \
+            --batch_size 512 \
+            --eval_freq 25 \
+            --exp_name "sac-rgbd-baseline-128x128-seed${seed}" \
+            --track \
+            --wandb_entity viswesh-n \
+            --wandb_project_name "sphere_approx" \
+            --wandb_group "SAC-RGBD-Baseline" \
+            --capture_video \
+            --save_model \
+            --control_
+          | tee /pers_vol/sac_rgbd_baseline_logs_$(date +%Y-%m-%d_%H-%M-%S).log
+
+        volumeMounts:
+        - name: sphere-approx-volume
+          mountPath: /pers_vol
+        resources:
+          requests:
+            cpu: "24"
+            memory: "128Gi"
+            nvidia.com/gpu: "1"
+          limits:
+            cpu: "24"
+            memory: "128Gi"
+            nvidia.com/gpu: "1"
+      volumes:
+      - name: sphere-approx-volume
+        persistentVolumeClaim:
+          claimName: viswesh-slow-vol 
