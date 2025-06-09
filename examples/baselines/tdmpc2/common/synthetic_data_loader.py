@@ -71,10 +71,8 @@ class SyntheticDataLoader:
             if image_tensor.shape[-1] != expected_size or image_tensor.shape[-2] != expected_size:
                 image_tensor = resize_transform(image_tensor)
             
-            # Normalize to [0, 1]
             image_tensor = image_tensor / 255.0
             
-            # Get action, reward, termination data
             action = np.array(self.metadata["actions"][i])
             reward = self.metadata["rewards"][i] if "rewards" in self.metadata else 0.0
             terminated = self.metadata["terminations"][i] if "terminations" in self.metadata else False
@@ -95,6 +93,22 @@ class SyntheticDataLoader:
                 else:
                     # No frame stacking or single frame expected
                     obs = {'rgb': image_tensor}
+                
+                # Add rgb-state if include_state is True
+                if getattr(self.cfg, 'include_state', False):
+                    # Generate dummy state data that matches expected dimensions
+                    if hasattr(self.cfg, 'obs_shape') and 'rgb-state' in self.cfg.obs_shape:
+                        state_shape = self.cfg.obs_shape['rgb-state']
+                        # Create dummy state data (zeros for now)
+                        dummy_state = torch.zeros(state_shape, dtype=torch.float32)
+                        obs['rgb-state'] = dummy_state
+                    else:
+                        # Fallback: create a reasonable dummy state size (common ManiSkill state sizes)
+                        # Default to a typical state size with frame stacking
+                        state_dim = 32  # Typical robot state dimension
+                        num_frames = expected_channels // 3 if expected_channels and expected_channels > 3 else 3
+                        dummy_state = torch.zeros(state_dim * num_frames, dtype=torch.float32)
+                        obs['rgb-state'] = dummy_state
             else:
                 # Handle tensor observations (non-dict)
                 # Auto-detect expected channels from config if available
@@ -139,11 +153,13 @@ class SyntheticDataLoader:
         if len(self.sequences) > 0 and len(self.sequences[0]) > 0:
             sample_obs = self.sequences[0][0]['obs']
             if isinstance(sample_obs, dict):
+                print("Synthetic data observation keys and shapes:")
                 for key, value in sample_obs.items():
-                    print(f"Synthetic data - {key} shape: {value.shape}")
+                    print(f"  {key}: {value.shape}")
             else:
                 print(f"Synthetic data - obs shape: {sample_obs.shape}")
             print(f"Expected render size: {expected_size}x{expected_size}")
+            print(f"Include state: {getattr(self.cfg, 'include_state', False)}")
     
     def sample_batch(self, batch_size):
         """Sample a batch of sequences for training"""
