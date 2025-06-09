@@ -16,7 +16,7 @@ setting_tag: none # ['none', 'walltime_efficient', 'sample_efficient', ...] for 
 # synthetic data (optional)
 synthetic_data_dir: /home/ubuntu/projects/shresh/open-pi-zero/data_outputs # path to synthetic data directory
 synthetic_ratio: 0.2 # ratio of synthetic data in training batches (0.0 to 1.0)
-use_colored_eval: false # whether to use colored table variants for evaluation
+use_colored_eval: true # whether to use colored table variants for evaluation
 
 # evaluation
 checkpoint: ???
