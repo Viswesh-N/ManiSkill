@@ -1,0 +1,1330 @@
+####
+args.num_iterations=781 args.num_envs=256 args.num_eval_envs=8
+args.minibatch_size=1600 args.batch_size=12800 args.update_epochs=8
+####
+Epoch: 1, global_step=0
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=2.8365259170532227
+eval_episode_len_mean=50.0
+eval_reward_mean=0.056730516254901886
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_1.pt
+SPS: 1142
+Epoch: 2, global_step=12800
+SPS: 1518
+Epoch: 3, global_step=25600
+SPS: 1700
+Epoch: 4, global_step=38400
+SPS: 1808
+Epoch: 5, global_step=51200
+SPS: 1882
+Epoch: 6, global_step=64000
+SPS: 1935
+Epoch: 7, global_step=76800
+SPS: 1975
+Epoch: 8, global_step=89600
+SPS: 2004
+Epoch: 9, global_step=102400
+SPS: 2027
+Epoch: 10, global_step=115200
+SPS: 2042
+Epoch: 11, global_step=128000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=7.91654109954834
+eval_episode_len_mean=50.0
+eval_reward_mean=0.15833082795143127
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_11.pt
+SPS: 1941
+Epoch: 12, global_step=140800
+SPS: 1958
+Epoch: 13, global_step=153600
+SPS: 1967
+Epoch: 14, global_step=166400
+SPS: 1973
+Epoch: 15, global_step=179200
+SPS: 1979
+Epoch: 16, global_step=192000
+SPS: 1983
+Epoch: 17, global_step=204800
+SPS: 1991
+Epoch: 18, global_step=217600
+SPS: 2000
+Epoch: 19, global_step=230400
+SPS: 2003
+Epoch: 20, global_step=243200
+SPS: 2003
+Epoch: 21, global_step=256000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=11.961761474609375
+eval_episode_len_mean=50.0
+eval_reward_mean=0.23923525214195251
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_21.pt
+SPS: 1944
+Epoch: 22, global_step=268800
+SPS: 1950
+Epoch: 23, global_step=281600
+SPS: 1954
+Epoch: 24, global_step=294400
+SPS: 1958
+Epoch: 25, global_step=307200
+SPS: 1961
+Epoch: 26, global_step=320000
+SPS: 1964
+Epoch: 27, global_step=332800
+SPS: 1967
+Epoch: 28, global_step=345600
+SPS: 1970
+Epoch: 29, global_step=358400
+SPS: 1972
+Epoch: 30, global_step=371200
+SPS: 1975
+Epoch: 31, global_step=384000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=19.331634521484375
+eval_episode_len_mean=50.0
+eval_reward_mean=0.38663268089294434
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_31.pt
+SPS: 1936
+Epoch: 32, global_step=396800
+SPS: 1942
+Epoch: 33, global_step=409600
+SPS: 1947
+Epoch: 34, global_step=422400
+SPS: 1952
+Epoch: 35, global_step=435200
+SPS: 1957
+Epoch: 36, global_step=448000
+SPS: 1962
+Epoch: 37, global_step=460800
+SPS: 1967
+Epoch: 38, global_step=473600
+SPS: 1972
+Epoch: 39, global_step=486400
+SPS: 1977
+Epoch: 40, global_step=499200
+SPS: 1981
+Epoch: 41, global_step=512000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=20.140018463134766
+eval_episode_len_mean=50.0
+eval_reward_mean=0.40280038118362427
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_41.pt
+SPS: 1960
+Epoch: 42, global_step=524800
+SPS: 1965
+Epoch: 43, global_step=537600
+SPS: 1969
+Epoch: 44, global_step=550400
+SPS: 1973
+Epoch: 45, global_step=563200
+SPS: 1978
+Epoch: 46, global_step=576000
+SPS: 1982
+Epoch: 47, global_step=588800
+SPS: 1986
+Epoch: 48, global_step=601600
+SPS: 1989
+Epoch: 49, global_step=614400
+SPS: 1993
+Epoch: 50, global_step=627200
+SPS: 1996
+Epoch: 51, global_step=640000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=21.86664390563965
+eval_episode_len_mean=50.0
+eval_reward_mean=0.4373328685760498
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_51.pt
+SPS: 1982
+Epoch: 52, global_step=652800
+SPS: 1986
+Epoch: 53, global_step=665600
+SPS: 1990
+Epoch: 54, global_step=678400
+SPS: 1998
+Epoch: 55, global_step=691200
+SPS: 2001
+Epoch: 56, global_step=704000
+SPS: 2004
+Epoch: 57, global_step=716800
+SPS: 2007
+Epoch: 58, global_step=729600
+SPS: 2010
+Epoch: 59, global_step=742400
+SPS: 2012
+Epoch: 60, global_step=755200
+SPS: 2015
+Epoch: 61, global_step=768000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=19.8033390045166
+eval_episode_len_mean=50.0
+eval_reward_mean=0.3960667848587036
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_61.pt
+SPS: 2002
+Epoch: 62, global_step=780800
+SPS: 2005
+Epoch: 63, global_step=793600
+SPS: 2007
+Epoch: 64, global_step=806400
+SPS: 2009
+Epoch: 65, global_step=819200
+SPS: 2012
+Epoch: 66, global_step=832000
+SPS: 2014
+Epoch: 67, global_step=844800
+SPS: 2016
+Epoch: 68, global_step=857600
+SPS: 2018
+Epoch: 69, global_step=870400
+SPS: 2020
+Epoch: 70, global_step=883200
+SPS: 2022
+Epoch: 71, global_step=896000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=20.300067901611328
+eval_episode_len_mean=50.0
+eval_reward_mean=0.40600138902664185
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_71.pt
+SPS: 2011
+Epoch: 72, global_step=908800
+SPS: 2013
+Epoch: 73, global_step=921600
+SPS: 2014
+Epoch: 74, global_step=934400
+SPS: 2016
+Epoch: 75, global_step=947200
+SPS: 2021
+Epoch: 76, global_step=960000
+SPS: 2022
+Epoch: 77, global_step=972800
+SPS: 2024
+Epoch: 78, global_step=985600
+SPS: 2025
+Epoch: 79, global_step=998400
+SPS: 2027
+Epoch: 80, global_step=1011200
+SPS: 2028
+Epoch: 81, global_step=1024000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=21.090242385864258
+eval_episode_len_mean=50.0
+eval_reward_mean=0.42180484533309937
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_81.pt
+SPS: 2018
+Epoch: 82, global_step=1036800
+SPS: 2020
+Epoch: 83, global_step=1049600
+SPS: 2021
+Epoch: 84, global_step=1062400
+SPS: 2023
+Epoch: 85, global_step=1075200
+SPS: 2024
+Epoch: 86, global_step=1088000
+SPS: 2025
+Epoch: 87, global_step=1100800
+SPS: 2027
+Epoch: 88, global_step=1113600
+SPS: 2028
+Epoch: 89, global_step=1126400
+SPS: 2030
+Epoch: 90, global_step=1139200
+SPS: 2031
+Epoch: 91, global_step=1152000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=19.83452606201172
+eval_episode_len_mean=50.0
+eval_reward_mean=0.3966904878616333
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_91.pt
+SPS: 2022
+Epoch: 92, global_step=1164800
+SPS: 2023
+Epoch: 93, global_step=1177600
+SPS: 2025
+Epoch: 94, global_step=1190400
+SPS: 2025
+Epoch: 95, global_step=1203200
+SPS: 2026
+Epoch: 96, global_step=1216000
+SPS: 2027
+Epoch: 97, global_step=1228800
+SPS: 2028
+Epoch: 98, global_step=1241600
+SPS: 2029
+Epoch: 99, global_step=1254400
+SPS: 2030
+Epoch: 100, global_step=1267200
+SPS: 2031
+Epoch: 101, global_step=1280000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=21.946624755859375
+eval_episode_len_mean=50.0
+eval_reward_mean=0.43893247842788696
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_101.pt
+SPS: 2027
+Epoch: 102, global_step=1292800
+SPS: 2035
+Epoch: 103, global_step=1305600
+SPS: 2041
+Epoch: 104, global_step=1318400
+SPS: 2042
+Epoch: 105, global_step=1331200
+SPS: 2042
+Epoch: 106, global_step=1344000
+SPS: 2043
+Epoch: 107, global_step=1356800
+SPS: 2043
+Epoch: 108, global_step=1369600
+SPS: 2044
+Epoch: 109, global_step=1382400
+SPS: 2044
+Epoch: 110, global_step=1395200
+SPS: 2045
+Epoch: 111, global_step=1408000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=22.40764808654785
+eval_episode_len_mean=50.0
+eval_reward_mean=0.44815295934677124
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_111.pt
+SPS: 2036
+Epoch: 112, global_step=1420800
+SPS: 2037
+Epoch: 113, global_step=1433600
+SPS: 2037
+Epoch: 114, global_step=1446400
+SPS: 2037
+Epoch: 115, global_step=1459200
+SPS: 2038
+Epoch: 116, global_step=1472000
+SPS: 2038
+Epoch: 117, global_step=1484800
+SPS: 2038
+Epoch: 118, global_step=1497600
+SPS: 2039
+Epoch: 119, global_step=1510400
+SPS: 2046
+Epoch: 120, global_step=1523200
+SPS: 2046
+Epoch: 121, global_step=1536000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=22.497119903564453
+eval_episode_len_mean=50.0
+eval_reward_mean=0.449942409992218
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_121.pt
+SPS: 2045
+Epoch: 122, global_step=1548800
+SPS: 2045
+Epoch: 123, global_step=1561600
+SPS: 2045
+Epoch: 124, global_step=1574400
+SPS: 2045
+Epoch: 125, global_step=1587200
+SPS: 2045
+Epoch: 126, global_step=1600000
+SPS: 2045
+Epoch: 127, global_step=1612800
+SPS: 2045
+Epoch: 128, global_step=1625600
+SPS: 2044
+Epoch: 129, global_step=1638400
+SPS: 2044
+Epoch: 130, global_step=1651200
+SPS: 2050
+Epoch: 131, global_step=1664000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=23.231834411621094
+eval_episode_len_mean=50.0
+eval_reward_mean=0.4646367132663727
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_131.pt
+SPS: 2043
+Epoch: 132, global_step=1676800
+SPS: 2043
+Epoch: 133, global_step=1689600
+SPS: 2043
+Epoch: 134, global_step=1702400
+SPS: 2043
+Epoch: 135, global_step=1715200
+SPS: 2042
+Epoch: 136, global_step=1728000
+SPS: 2042
+Epoch: 137, global_step=1740800
+SPS: 2041
+Epoch: 138, global_step=1753600
+SPS: 2041
+Epoch: 139, global_step=1766400
+SPS: 2041
+Epoch: 140, global_step=1779200
+SPS: 2040
+Epoch: 141, global_step=1792000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=23.59478759765625
+eval_episode_len_mean=50.0
+eval_reward_mean=0.4718957543373108
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_141.pt
+SPS: 2033
+Epoch: 142, global_step=1804800
+SPS: 2032
+Epoch: 143, global_step=1817600
+SPS: 2036
+Epoch: 144, global_step=1830400
+SPS: 2035
+Epoch: 145, global_step=1843200
+SPS: 2034
+Epoch: 146, global_step=1856000
+SPS: 2033
+Epoch: 147, global_step=1868800
+SPS: 2033
+Epoch: 148, global_step=1881600
+SPS: 2032
+Epoch: 149, global_step=1894400
+SPS: 2031
+Epoch: 150, global_step=1907200
+SPS: 2030
+Epoch: 151, global_step=1920000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=23.261890411376953
+eval_episode_len_mean=50.0
+eval_reward_mean=0.4652377963066101
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_151.pt
+SPS: 2024
+Epoch: 152, global_step=1932800
+SPS: 2023
+Epoch: 153, global_step=1945600
+SPS: 2022
+Epoch: 154, global_step=1958400
+SPS: 2022
+Epoch: 155, global_step=1971200
+SPS: 2021
+Epoch: 156, global_step=1984000
+SPS: 2020
+Epoch: 157, global_step=1996800
+SPS: 2020
+Epoch: 158, global_step=2009600
+SPS: 2020
+Epoch: 159, global_step=2022400
+SPS: 2019
+Epoch: 160, global_step=2035200
+SPS: 2018
+Epoch: 161, global_step=2048000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=23.508129119873047
+eval_episode_len_mean=50.0
+eval_reward_mean=0.470162570476532
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_161.pt
+SPS: 2012
+Epoch: 162, global_step=2060800
+SPS: 2011
+Epoch: 163, global_step=2073600
+SPS: 2010
+Epoch: 164, global_step=2086400
+SPS: 2010
+Epoch: 165, global_step=2099200
+SPS: 2009
+Epoch: 166, global_step=2112000
+SPS: 2008
+Epoch: 167, global_step=2124800
+SPS: 2007
+Epoch: 168, global_step=2137600
+SPS: 2011
+Epoch: 169, global_step=2150400
+SPS: 2010
+Epoch: 170, global_step=2163200
+SPS: 2010
+Epoch: 171, global_step=2176000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.0
+eval_return_mean=23.409095764160156
+eval_episode_len_mean=50.0
+eval_reward_mean=0.46818193793296814
+eval_success_at_end_mean=0.0
+model saved to runs/pickcube_robot_decomposed/ckpt_171.pt
+SPS: 2004
+Epoch: 172, global_step=2188800
+SPS: 2003
+Epoch: 173, global_step=2201600
+SPS: 2002
+Epoch: 174, global_step=2214400
+SPS: 2005
+Epoch: 175, global_step=2227200
+SPS: 2004
+Epoch: 176, global_step=2240000
+SPS: 2003
+Epoch: 177, global_step=2252800
+SPS: 2002
+Epoch: 178, global_step=2265600
+SPS: 2003
+Epoch: 179, global_step=2278400
+SPS: 2001
+Epoch: 180, global_step=2291200
+SPS: 2004
+Epoch: 181, global_step=2304000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.25
+eval_return_mean=22.600292205810547
+eval_episode_len_mean=50.0
+eval_reward_mean=0.45200586318969727
+eval_success_at_end_mean=0.25
+model saved to runs/pickcube_robot_decomposed/ckpt_181.pt
+SPS: 1998
+Epoch: 182, global_step=2316800
+SPS: 1997
+Epoch: 183, global_step=2329600
+SPS: 1996
+Epoch: 184, global_step=2342400
+SPS: 1997
+Epoch: 185, global_step=2355200
+SPS: 1998
+Epoch: 186, global_step=2368000
+SPS: 1997
+Epoch: 187, global_step=2380800
+SPS: 1995
+Epoch: 188, global_step=2393600
+SPS: 1994
+Epoch: 189, global_step=2406400
+SPS: 1996
+Epoch: 190, global_step=2419200
+SPS: 1999
+Epoch: 191, global_step=2432000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.25
+eval_return_mean=24.906784057617188
+eval_episode_len_mean=50.0
+eval_reward_mean=0.49813568592071533
+eval_success_at_end_mean=0.25
+model saved to runs/pickcube_robot_decomposed/ckpt_191.pt
+SPS: 1993
+Epoch: 192, global_step=2444800
+SPS: 1991
+Epoch: 193, global_step=2457600
+SPS: 1990
+Epoch: 194, global_step=2470400
+SPS: 1988
+Epoch: 195, global_step=2483200
+SPS: 1987
+Epoch: 196, global_step=2496000
+SPS: 1989
+Epoch: 197, global_step=2508800
+SPS: 1987
+Epoch: 198, global_step=2521600
+SPS: 1988
+Epoch: 199, global_step=2534400
+SPS: 1989
+Epoch: 200, global_step=2547200
+SPS: 1987
+Epoch: 201, global_step=2560000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.375
+eval_return_mean=25.957977294921875
+eval_episode_len_mean=50.0
+eval_reward_mean=0.5191595554351807
+eval_success_at_end_mean=0.375
+model saved to runs/pickcube_robot_decomposed/ckpt_201.pt
+SPS: 1981
+Epoch: 202, global_step=2572800
+SPS: 1980
+Epoch: 203, global_step=2585600
+SPS: 1978
+Epoch: 204, global_step=2598400
+SPS: 1979
+Epoch: 205, global_step=2611200
+SPS: 1978
+Epoch: 206, global_step=2624000
+SPS: 1976
+Epoch: 207, global_step=2636800
+SPS: 1975
+Epoch: 208, global_step=2649600
+SPS: 1977
+Epoch: 209, global_step=2662400
+SPS: 1977
+Epoch: 210, global_step=2675200
+SPS: 1976
+Epoch: 211, global_step=2688000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.375
+eval_return_mean=25.732051849365234
+eval_episode_len_mean=50.0
+eval_reward_mean=0.5146410465240479
+eval_success_at_end_mean=0.25
+model saved to runs/pickcube_robot_decomposed/ckpt_211.pt
+SPS: 1970
+Epoch: 212, global_step=2700800
+SPS: 1969
+Epoch: 213, global_step=2713600
+SPS: 1967
+Epoch: 214, global_step=2726400
+SPS: 1968
+Epoch: 215, global_step=2739200
+SPS: 1968
+Epoch: 216, global_step=2752000
+SPS: 1967
+Epoch: 217, global_step=2764800
+SPS: 1967
+Epoch: 218, global_step=2777600
+SPS: 1967
+Epoch: 219, global_step=2790400
+SPS: 1967
+Epoch: 220, global_step=2803200
+SPS: 1967
+Epoch: 221, global_step=2816000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.25
+eval_return_mean=21.483562469482422
+eval_episode_len_mean=50.0
+eval_reward_mean=0.4296712577342987
+eval_success_at_end_mean=0.25
+model saved to runs/pickcube_robot_decomposed/ckpt_221.pt
+SPS: 1962
+Epoch: 222, global_step=2828800
+SPS: 1963
+Epoch: 223, global_step=2841600
+SPS: 1962
+Epoch: 224, global_step=2854400
+SPS: 1962
+Epoch: 225, global_step=2867200
+SPS: 1963
+Epoch: 226, global_step=2880000
+SPS: 1964
+Epoch: 227, global_step=2892800
+SPS: 1966
+Epoch: 228, global_step=2905600
+SPS: 1964
+Epoch: 229, global_step=2918400
+SPS: 1963
+Epoch: 230, global_step=2931200
+SPS: 1962
+Epoch: 231, global_step=2944000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.625
+eval_return_mean=26.62701988220215
+eval_episode_len_mean=50.0
+eval_reward_mean=0.5325404405593872
+eval_success_at_end_mean=0.625
+model saved to runs/pickcube_robot_decomposed/ckpt_231.pt
+SPS: 1957
+Epoch: 232, global_step=2956800
+SPS: 1958
+Epoch: 233, global_step=2969600
+SPS: 1958
+Epoch: 234, global_step=2982400
+SPS: 1957
+Epoch: 235, global_step=2995200
+SPS: 1955
+Epoch: 236, global_step=3008000
+SPS: 1957
+Epoch: 237, global_step=3020800
+SPS: 1956
+Epoch: 238, global_step=3033600
+SPS: 1955
+Epoch: 239, global_step=3046400
+SPS: 1956
+Epoch: 240, global_step=3059200
+SPS: 1956
+Epoch: 241, global_step=3072000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.75
+eval_return_mean=25.935617446899414
+eval_episode_len_mean=50.0
+eval_reward_mean=0.5187122821807861
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_241.pt
+SPS: 1952
+Epoch: 242, global_step=3084800
+SPS: 1951
+Epoch: 243, global_step=3097600
+SPS: 1952
+Epoch: 244, global_step=3110400
+SPS: 1953
+Epoch: 245, global_step=3123200
+SPS: 1955
+Epoch: 246, global_step=3136000
+SPS: 1954
+Epoch: 247, global_step=3148800
+SPS: 1953
+Epoch: 248, global_step=3161600
+SPS: 1952
+Epoch: 249, global_step=3174400
+SPS: 1951
+Epoch: 250, global_step=3187200
+SPS: 1950
+Epoch: 251, global_step=3200000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=34.18367385864258
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6836735010147095
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_251.pt
+SPS: 1948
+Epoch: 252, global_step=3212800
+SPS: 1948
+Epoch: 253, global_step=3225600
+SPS: 1947
+Epoch: 254, global_step=3238400
+SPS: 1946
+Epoch: 255, global_step=3251200
+SPS: 1945
+Epoch: 256, global_step=3264000
+SPS: 1944
+Epoch: 257, global_step=3276800
+SPS: 1943
+Epoch: 258, global_step=3289600
+SPS: 1942
+Epoch: 259, global_step=3302400
+SPS: 1943
+Epoch: 260, global_step=3315200
+SPS: 1943
+Epoch: 261, global_step=3328000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=35.119544982910156
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7023909091949463
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_261.pt
+SPS: 1940
+Epoch: 262, global_step=3340800
+SPS: 1940
+Epoch: 263, global_step=3353600
+SPS: 1942
+Epoch: 264, global_step=3366400
+SPS: 1943
+Epoch: 265, global_step=3379200
+SPS: 1944
+Epoch: 266, global_step=3392000
+SPS: 1944
+Epoch: 267, global_step=3404800
+SPS: 1946
+Epoch: 268, global_step=3417600
+SPS: 1946
+Epoch: 269, global_step=3430400
+SPS: 1946
+Epoch: 270, global_step=3443200
+SPS: 1947
+Epoch: 271, global_step=3456000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.875
+eval_return_mean=33.94768524169922
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6789537072181702
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_271.pt
+SPS: 1945
+Epoch: 272, global_step=3468800
+SPS: 1946
+Epoch: 273, global_step=3481600
+SPS: 1948
+Epoch: 274, global_step=3494400
+SPS: 1949
+Epoch: 275, global_step=3507200
+SPS: 1950
+Epoch: 276, global_step=3520000
+SPS: 1951
+Epoch: 277, global_step=3532800
+SPS: 1952
+Epoch: 278, global_step=3545600
+SPS: 1951
+Epoch: 279, global_step=3558400
+SPS: 1952
+Epoch: 280, global_step=3571200
+SPS: 1954
+Epoch: 281, global_step=3584000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.75
+eval_return_mean=28.723339080810547
+eval_episode_len_mean=50.0
+eval_reward_mean=0.5744667053222656
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_281.pt
+SPS: 1951
+Epoch: 282, global_step=3596800
+SPS: 1952
+Epoch: 283, global_step=3609600
+SPS: 1953
+Epoch: 284, global_step=3622400
+SPS: 1955
+Epoch: 285, global_step=3635200
+SPS: 1956
+Epoch: 286, global_step=3648000
+SPS: 1955
+Epoch: 287, global_step=3660800
+SPS: 1954
+Epoch: 288, global_step=3673600
+SPS: 1953
+Epoch: 289, global_step=3686400
+SPS: 1952
+Epoch: 290, global_step=3699200
+SPS: 1953
+Epoch: 291, global_step=3712000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.75
+eval_return_mean=29.926546096801758
+eval_episode_len_mean=50.0
+eval_reward_mean=0.5985309481620789
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_291.pt
+SPS: 1952
+Epoch: 292, global_step=3724800
+SPS: 1953
+Epoch: 293, global_step=3737600
+SPS: 1954
+Epoch: 294, global_step=3750400
+SPS: 1954
+Epoch: 295, global_step=3763200
+SPS: 1956
+Epoch: 296, global_step=3776000
+SPS: 1957
+Epoch: 297, global_step=3788800
+SPS: 1959
+Epoch: 298, global_step=3801600
+SPS: 1960
+Epoch: 299, global_step=3814400
+SPS: 1959
+Epoch: 300, global_step=3827200
+SPS: 1960
+Epoch: 301, global_step=3840000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.875
+eval_return_mean=33.37102127075195
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6674203872680664
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_301.pt
+SPS: 1955
+Epoch: 302, global_step=3852800
+SPS: 1955
+Epoch: 303, global_step=3865600
+SPS: 1956
+Epoch: 304, global_step=3878400
+SPS: 1956
+Epoch: 305, global_step=3891200
+SPS: 1958
+Epoch: 306, global_step=3904000
+SPS: 1957
+Epoch: 307, global_step=3916800
+SPS: 1958
+Epoch: 308, global_step=3929600
+SPS: 1959
+Epoch: 309, global_step=3942400
+SPS: 1961
+Epoch: 310, global_step=3955200
+SPS: 1961
+Epoch: 311, global_step=3968000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=36.67265319824219
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7334530353546143
+eval_success_at_end_mean=1.0
+model saved to runs/pickcube_robot_decomposed/ckpt_311.pt
+SPS: 1960
+Epoch: 312, global_step=3980800
+SPS: 1960
+Epoch: 313, global_step=3993600
+SPS: 1961
+Epoch: 314, global_step=4006400
+SPS: 1962
+Epoch: 315, global_step=4019200
+SPS: 1961
+Epoch: 316, global_step=4032000
+SPS: 1961
+Epoch: 317, global_step=4044800
+SPS: 1963
+Epoch: 318, global_step=4057600
+SPS: 1964
+Epoch: 319, global_step=4070400
+SPS: 1964
+Epoch: 320, global_step=4083200
+SPS: 1966
+Epoch: 321, global_step=4096000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=36.50725173950195
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7301449775695801
+eval_success_at_end_mean=1.0
+model saved to runs/pickcube_robot_decomposed/ckpt_321.pt
+SPS: 1964
+Epoch: 322, global_step=4108800
+SPS: 1965
+Epoch: 323, global_step=4121600
+SPS: 1966
+Epoch: 324, global_step=4134400
+SPS: 1967
+Epoch: 325, global_step=4147200
+SPS: 1966
+Epoch: 326, global_step=4160000
+SPS: 1967
+Epoch: 327, global_step=4172800
+SPS: 1968
+Epoch: 328, global_step=4185600
+SPS: 1968
+Epoch: 329, global_step=4198400
+SPS: 1970
+Epoch: 330, global_step=4211200
+SPS: 1971
+Epoch: 331, global_step=4224000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.75
+eval_return_mean=30.133398056030273
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6026679277420044
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_331.pt
+SPS: 1970
+Epoch: 332, global_step=4236800
+SPS: 1971
+Epoch: 333, global_step=4249600
+SPS: 1972
+Epoch: 334, global_step=4262400
+SPS: 1973
+Epoch: 335, global_step=4275200
+SPS: 1975
+Epoch: 336, global_step=4288000
+SPS: 1975
+Epoch: 337, global_step=4300800
+SPS: 1976
+Epoch: 338, global_step=4313600
+SPS: 1977
+Epoch: 339, global_step=4326400
+SPS: 1977
+Epoch: 340, global_step=4339200
+SPS: 1978
+Epoch: 341, global_step=4352000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=38.659141540527344
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7731828689575195
+eval_success_at_end_mean=1.0
+model saved to runs/pickcube_robot_decomposed/ckpt_341.pt
+SPS: 1976
+Epoch: 342, global_step=4364800
+SPS: 1975
+Epoch: 343, global_step=4377600
+SPS: 1976
+Epoch: 344, global_step=4390400
+SPS: 1975
+Epoch: 345, global_step=4403200
+SPS: 1976
+Epoch: 346, global_step=4416000
+SPS: 1977
+Epoch: 347, global_step=4428800
+SPS: 1977
+Epoch: 348, global_step=4441600
+SPS: 1977
+Epoch: 349, global_step=4454400
+SPS: 1978
+Epoch: 350, global_step=4467200
+SPS: 1979
+Epoch: 351, global_step=4480000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.875
+eval_return_mean=30.929759979248047
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6185952425003052
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_351.pt
+SPS: 1975
+Epoch: 352, global_step=4492800
+SPS: 1974
+Epoch: 353, global_step=4505600
+SPS: 1975
+Epoch: 354, global_step=4518400
+SPS: 1974
+Epoch: 355, global_step=4531200
+SPS: 1975
+Epoch: 356, global_step=4544000
+SPS: 1976
+Epoch: 357, global_step=4556800
+SPS: 1978
+Epoch: 358, global_step=4569600
+SPS: 1979
+Epoch: 359, global_step=4582400
+SPS: 1980
+Epoch: 360, global_step=4595200
+SPS: 1982
+Epoch: 361, global_step=4608000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=39.19202423095703
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7838404774665833
+eval_success_at_end_mean=1.0
+model saved to runs/pickcube_robot_decomposed/ckpt_361.pt
+SPS: 1979
+Epoch: 362, global_step=4620800
+SPS: 1979
+Epoch: 363, global_step=4633600
+SPS: 1979
+Epoch: 364, global_step=4646400
+SPS: 1980
+Epoch: 365, global_step=4659200
+SPS: 1979
+Epoch: 366, global_step=4672000
+SPS: 1980
+Epoch: 367, global_step=4684800
+SPS: 1980
+Epoch: 368, global_step=4697600
+SPS: 1980
+Epoch: 369, global_step=4710400
+SPS: 1981
+Epoch: 370, global_step=4723200
+SPS: 1980
+Epoch: 371, global_step=4736000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=38.35768127441406
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7671536207199097
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_371.pt
+SPS: 1977
+Epoch: 372, global_step=4748800
+SPS: 1978
+Epoch: 373, global_step=4761600
+SPS: 1979
+Epoch: 374, global_step=4774400
+SPS: 1979
+Epoch: 375, global_step=4787200
+SPS: 1980
+Epoch: 376, global_step=4800000
+SPS: 1980
+Epoch: 377, global_step=4812800
+SPS: 1981
+Epoch: 378, global_step=4825600
+SPS: 1980
+Epoch: 379, global_step=4838400
+SPS: 1981
+Epoch: 380, global_step=4851200
+SPS: 1982
+Epoch: 381, global_step=4864000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.875
+eval_return_mean=33.34075164794922
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6668149828910828
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_381.pt
+SPS: 1981
+Epoch: 382, global_step=4876800
+SPS: 1982
+Epoch: 383, global_step=4889600
+SPS: 1983
+Epoch: 384, global_step=4902400
+SPS: 1983
+Epoch: 385, global_step=4915200
+SPS: 1984
+Epoch: 386, global_step=4928000
+SPS: 1984
+Epoch: 387, global_step=4940800
+SPS: 1985
+Epoch: 388, global_step=4953600
+SPS: 1986
+Epoch: 389, global_step=4966400
+SPS: 1987
+Epoch: 390, global_step=4979200
+SPS: 1988
+Epoch: 391, global_step=4992000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.75
+eval_return_mean=30.928184509277344
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6185636520385742
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_391.pt
+SPS: 1987
+Epoch: 392, global_step=5004800
+SPS: 1988
+Epoch: 393, global_step=5017600
+SPS: 1989
+Epoch: 394, global_step=5030400
+SPS: 1989
+Epoch: 395, global_step=5043200
+SPS: 1991
+Epoch: 396, global_step=5056000
+SPS: 1992
+Epoch: 397, global_step=5068800
+SPS: 1993
+Epoch: 398, global_step=5081600
+SPS: 1993
+Epoch: 399, global_step=5094400
+SPS: 1994
+Epoch: 400, global_step=5107200
+SPS: 1995
+Epoch: 401, global_step=5120000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.875
+eval_return_mean=34.24543380737305
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6849087476730347
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_401.pt
+SPS: 1994
+Epoch: 402, global_step=5132800
+SPS: 1994
+Epoch: 403, global_step=5145600
+SPS: 1995
+Epoch: 404, global_step=5158400
+SPS: 1996
+Epoch: 405, global_step=5171200
+SPS: 1998
+Epoch: 406, global_step=5184000
+SPS: 1999
+Epoch: 407, global_step=5196800
+SPS: 2000
+Epoch: 408, global_step=5209600
+SPS: 2001
+Epoch: 409, global_step=5222400
+SPS: 2002
+Epoch: 410, global_step=5235200
+SPS: 2003
+Epoch: 411, global_step=5248000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.875
+eval_return_mean=34.56272888183594
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6912546157836914
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_411.pt
+SPS: 2001
+Epoch: 412, global_step=5260800
+SPS: 2000
+Epoch: 413, global_step=5273600
+SPS: 1999
+Epoch: 414, global_step=5286400
+SPS: 2000
+Epoch: 415, global_step=5299200
+SPS: 2001
+Epoch: 416, global_step=5312000
+SPS: 2002
+Epoch: 417, global_step=5324800
+SPS: 2003
+Epoch: 418, global_step=5337600
+SPS: 2004
+Epoch: 419, global_step=5350400
+SPS: 2004
+Epoch: 420, global_step=5363200
+SPS: 2005
+Epoch: 421, global_step=5376000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=0.875
+eval_return_mean=34.05450439453125
+eval_episode_len_mean=50.0
+eval_reward_mean=0.6810901165008545
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_421.pt
+SPS: 2004
+Epoch: 422, global_step=5388800
+SPS: 2005
+Epoch: 423, global_step=5401600
+SPS: 2006
+Epoch: 424, global_step=5414400
+SPS: 2007
+Epoch: 425, global_step=5427200
+SPS: 2007
+Epoch: 426, global_step=5440000
+SPS: 2008
+Epoch: 427, global_step=5452800
+SPS: 2007
+Epoch: 428, global_step=5465600
+SPS: 2007
+Epoch: 429, global_step=5478400
+SPS: 2007
+Epoch: 430, global_step=5491200
+SPS: 2007
+Epoch: 431, global_step=5504000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=38.591796875
+eval_episode_len_mean=50.0
+eval_reward_mean=0.77183598279953
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_431.pt
+SPS: 2005
+Epoch: 432, global_step=5516800
+SPS: 2006
+Epoch: 433, global_step=5529600
+SPS: 2007
+Epoch: 434, global_step=5542400
+SPS: 2008
+Epoch: 435, global_step=5555200
+SPS: 2009
+Epoch: 436, global_step=5568000
+SPS: 2010
+Epoch: 437, global_step=5580800
+SPS: 2011
+Epoch: 438, global_step=5593600
+SPS: 2012
+Epoch: 439, global_step=5606400
+SPS: 2013
+Epoch: 440, global_step=5619200
+SPS: 2013
+Epoch: 441, global_step=5632000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=37.05787658691406
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7411575317382812
+eval_success_at_end_mean=0.875
+model saved to runs/pickcube_robot_decomposed/ckpt_441.pt
+SPS: 2012
+Epoch: 442, global_step=5644800
+SPS: 2012
+Epoch: 443, global_step=5657600
+SPS: 2012
+Epoch: 444, global_step=5670400
+SPS: 2013
+Epoch: 445, global_step=5683200
+SPS: 2014
+Epoch: 446, global_step=5696000
+SPS: 2014
+Epoch: 447, global_step=5708800
+SPS: 2015
+Epoch: 448, global_step=5721600
+SPS: 2015
+Epoch: 449, global_step=5734400
+SPS: 2016
+Epoch: 450, global_step=5747200
+SPS: 2017
+Epoch: 451, global_step=5760000
+Evaluating
+Evaluated 400 steps resulting in 8 episodes
+eval_success_once_mean=1.0
+eval_return_mean=37.16291046142578
+eval_episode_len_mean=50.0
+eval_reward_mean=0.7432581782341003
+eval_success_at_end_mean=0.75
+model saved to runs/pickcube_robot_decomposed/ckpt_451.pt
+SPS: 2015
+Epoch: 452, global_step=5772800
+SPS: 2015
+Epoch: 453, global_step=5785600
+Traceback (most recent call last):
+  File "/home/viswesh/grid/curriculum/ManiSkill/examples/baselines/ppo/ppo_rgb.py", line 440, in <module>
+    next_obs, reward, terminations, truncations, infos = envs.step(action)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/vector/wrappers/gymnasium.py", line 149, in step
+    obs, infos = self.reset(options=dict(env_idx=env_idx))
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/vector/wrappers/gymnasium.py", line 94, in reset
+    obs, info = self._env.reset(seed=seed, options=options)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/gymnasium/core.py", line 515, in reset
+    obs, info = self.env.reset(seed=seed, options=options)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/gymnasium/core.py", line 467, in reset
+    return self.env.reset(seed=seed, options=options)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/gymnasium/wrappers/order_enforcing.py", line 61, in reset
+    return self.env.reset(**kwargs)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 945, in reset
+    obs = self.get_obs(info)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 524, in get_obs
+    obs = self._get_obs_with_sensor_data(info)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 625, in _get_obs_with_sensor_data
+    sensor_data=self._get_obs_sensor_data(apply_texture_transforms),
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 616, in _get_obs_sensor_data
+    torch.cuda.synchronize()
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/torch/cuda/__init__.py", line 954, in synchronize
+    return torch._C._cuda_synchronize()
+KeyboardInterrupt
+Traceback (most recent call last):
+  File "/home/viswesh/grid/curriculum/ManiSkill/examples/baselines/ppo/ppo_rgb.py", line 440, in <module>
+    next_obs, reward, terminations, truncations, infos = envs.step(action)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/vector/wrappers/gymnasium.py", line 149, in step
+    obs, infos = self.reset(options=dict(env_idx=env_idx))
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/vector/wrappers/gymnasium.py", line 94, in reset
+    obs, info = self._env.reset(seed=seed, options=options)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/gymnasium/core.py", line 515, in reset
+    obs, info = self.env.reset(seed=seed, options=options)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/gymnasium/core.py", line 467, in reset
+    return self.env.reset(seed=seed, options=options)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/gymnasium/wrappers/order_enforcing.py", line 61, in reset
+    return self.env.reset(**kwargs)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 945, in reset
+    obs = self.get_obs(info)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 524, in get_obs
+    obs = self._get_obs_with_sensor_data(info)
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 625, in _get_obs_with_sensor_data
+    sensor_data=self._get_obs_sensor_data(apply_texture_transforms),
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/mani_skill/envs/sapien_env.py", line 616, in _get_obs_sensor_data
+    torch.cuda.synchronize()
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/site-packages/torch/cuda/__init__.py", line 954, in synchronize
+    return torch._C._cuda_synchronize()
+KeyboardInterrupt
+Error in atexit._run_exitfuncs:
+Traceback (most recent call last):
+  File "/home/viswesh/anaconda3/envs/maniskill/lib/python3.9/threading.py", line 1080, in _wait_for_tstate_lock
+    if lock.acquire(block, timeout):
+KeyboardInterrupt

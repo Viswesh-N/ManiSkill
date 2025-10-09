@@ -1,0 +1,30 @@
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/finger.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/finger.glb
+index 929d94a..1a13b81 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/finger.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/finger.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/hand.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/hand.glb
+index 9e7c1ca..b4d581f 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/hand.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/hand.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link0.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link0.glb
+index 14a62ba..42234be 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link0.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link0.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link1.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link1.glb
+index 1368c71..08c6c7e 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link1.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link1.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link2.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link2.glb
+index 2ddb3d2..6462297 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link2.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link2.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link3.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link3.glb
+index e3568fa..68ce2fb 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link3.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link3.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link4.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link4.glb
+index 674ac90..5f1565e 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link4.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link4.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link5.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link5.glb
+index 75a950f..20d9caf 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link5.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link5.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link6.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link6.glb
+index 6f6af68..132875d 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link6.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link6.glb differ
+diff --git a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link7.glb b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link7.glb
+index 6e88716..3e2b15e 100644
+Binary files a/mani_skill/assets/robots/panda/franka_description/meshes/visual/link7.glb and b/mani_skill/assets/robots/panda/franka_description/meshes/visual/link7.glb differ
