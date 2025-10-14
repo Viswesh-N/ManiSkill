@@ -6,7 +6,7 @@ cd /home/viswesh/grid/curriculum/ManiSkill
 
 python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
-  --num_envs=256 \
+  --num_envs=128 \
   --update_epochs=8 \
   --num_minibatches=8 \
   --total_timesteps=10_000_000 \

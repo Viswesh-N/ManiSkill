@@ -19,36 +19,41 @@ def convert_glb_to_obj(glb_path, obj_path):
     mesh.export(obj_path)
     return mesh
 
-def decompose_mesh_with_coacd(obj_path, threshold=0.1, max_convex_hull=-1, mcts_iterations=150, mcts_max_depth=4, mcts_nodes=25):
+def decompose_mesh_with_coacd(obj_path, threshold=0.1, max_convex_hull=-1, mcts_iterations=150,
+                               mcts_max_depth=4, mcts_nodes=25, max_ch_vertex=256,
+                               preprocess_resolution=50, decimate=False):
     """
     Decompose mesh using CoACD.
-    
+
     Parameters (ADJUST THESE FOR DIFFERENT SIMPLIFICATION LEVELS):
-    
+
     CURRENT (Moderate - recognizable robot):
     - threshold=0.1, max_convex_hull=-1, mcts_iterations=150, mcts_max_depth=4, mcts_nodes=25
-    
+
     MORE AGGRESSIVE (blockier, more obvious simplification):
     - threshold=0.3, max_convex_hull=5, mcts_iterations=100, mcts_max_depth=3, mcts_nodes=15
-    
+
     LESS AGGRESSIVE (very subtle, closer to original):
     - threshold=0.05, max_convex_hull=-1, mcts_iterations=200, mcts_max_depth=5, mcts_nodes=30
-    
+
     Key parameters:
     - threshold: concavity threshold (0.01~1). Higher = coarser/fewer parts.
     - max_convex_hull: max number of parts per link (-1 = no limit)
     - mcts_iterations: more = better quality but slower
     - mcts_max_depth: deeper search = better decomposition
     - mcts_nodes: more nodes = better exploration
+    - max_ch_vertex: max vertices per convex hull (lower = simpler shapes)
+    - preprocess_resolution: voxel resolution for preprocessing (lower = coarser)
+    - decimate: enable mesh decimation (reduces vertex count)
     """
-    print(f"Decomposing {obj_path} with threshold={threshold}, max_hulls={max_convex_hull}...")
-    
+    print(f"Decomposing {obj_path} with threshold={threshold}, max_hulls={max_convex_hull}, max_verts={max_ch_vertex}...")
+
     # Load mesh
     mesh = trimesh.load(obj_path, force='mesh')
-    
+
     # Create CoACD mesh
     coacd_mesh = coacd.Mesh(mesh.vertices, mesh.faces)
-    
+
     # Run CoACD with specified parameters
     parts = coacd.run_coacd(
         coacd_mesh,
@@ -57,7 +62,10 @@ def decompose_mesh_with_coacd(obj_path, threshold=0.1, max_convex_hull=-1, mcts_
         mcts_iterations=mcts_iterations,
         mcts_max_depth=mcts_max_depth,
         mcts_nodes=mcts_nodes,
-        preprocess_mode='auto'
+        preprocess_mode='auto',
+        preprocess_resolution=preprocess_resolution,
+        max_ch_vertex=max_ch_vertex,
+        decimate=decimate
     )
     
     print(f"  Decomposed into {len(parts)} convex parts")
@@ -91,8 +99,9 @@ def decompose_mesh_with_coacd(obj_path, threshold=0.1, max_convex_hull=-1, mcts_
     
     return combined_mesh
 
-def process_panda_meshes(threshold=0.1, max_convex_hull=-1, mcts_iterations=150, 
-                         mcts_max_depth=4, mcts_nodes=25, backup=True):
+def process_panda_meshes(threshold=0.1, max_convex_hull=-1, mcts_iterations=150,
+                         mcts_max_depth=4, mcts_nodes=25, max_ch_vertex=256,
+                         preprocess_resolution=50, decimate=False, backup=True):
     """
     Process all Panda visual meshes.
     
@@ -157,12 +166,15 @@ def process_panda_meshes(threshold=0.1, max_convex_hull=-1, mcts_iterations=150,
             
             # Decompose with CoACD
             decomposed_mesh = decompose_mesh_with_coacd(
-                obj_path, 
+                obj_path,
                 threshold=threshold,
                 max_convex_hull=max_convex_hull,
                 mcts_iterations=mcts_iterations,
                 mcts_max_depth=mcts_max_depth,
-                mcts_nodes=mcts_nodes
+                mcts_nodes=mcts_nodes,
+                max_ch_vertex=max_ch_vertex,
+                preprocess_resolution=preprocess_resolution,
+                decimate=decimate
             )
             
             # Save decomposed mesh as GLB
@@ -198,20 +210,23 @@ if __name__ == "__main__":
     
     # OPTION 1: MODERATE (current - recognizable robot, 79% fewer vertices)
     # Good for: Starting point for curriculum learning
-    threshold = 0.1
-    max_convex_hull = -1
-    mcts_iterations = 150
-    mcts_max_depth = 4
-    mcts_nodes = 25
-    
+    # threshold = 0.1
+    # max_convex_hull = -1
+    # mcts_iterations = 150
+    # mcts_max_depth = 4
+    # mcts_nodes = 25
+
     # OPTION 2: AGGRESSIVE (blockier, more obviously simplified)
     # Good for: Easier visual learning, very fast rendering
-    # Uncomment below to use:
-    # threshold = 0.3
-    # max_convex_hull = 5
-    # mcts_iterations = 100
-    # mcts_max_depth = 3
-    # mcts_nodes = 15
+    # CURRENTLY ACTIVE: ULTRA EXTREME SIMPLIFICATION - ABSOLUTE MAXIMUM
+    threshold = 1.0  # Maximum simplification (1.0 is max)
+    max_convex_hull = 1  # Single convex hull per mesh (most extreme)
+    mcts_iterations = 50  # Minimal iterations
+    mcts_max_depth = 2  # Minimal depth
+    mcts_nodes = 5  # Minimal nodes
+    max_ch_vertex = 32  # ULTRA LOW vertex count per convex hull (was 256)
+    preprocess_resolution = 20  # ULTRA LOW resolution preprocessing (was 50)
+    decimate = True  # Enable decimation to reduce vertices further
     
     # OPTION 3: SUBTLE (very close to original, minimal simplification)
     # Good for: High-fidelity curriculum end stage
@@ -230,14 +245,20 @@ if __name__ == "__main__":
     print(f"  - mcts_iterations: {mcts_iterations}")
     print(f"  - mcts_max_depth: {mcts_max_depth}")
     print(f"  - mcts_nodes: {mcts_nodes}")
+    print(f"  - max_ch_vertex: {max_ch_vertex}")
+    print(f"  - preprocess_resolution: {preprocess_resolution}")
+    print(f"  - decimate: {decimate}")
     print()
-    
+
     process_panda_meshes(
         threshold=threshold,
         max_convex_hull=max_convex_hull,
         mcts_iterations=mcts_iterations,
         mcts_max_depth=mcts_max_depth,
         mcts_nodes=mcts_nodes,
+        max_ch_vertex=max_ch_vertex,
+        preprocess_resolution=preprocess_resolution,
+        decimate=decimate,
         backup=True
     )
 
