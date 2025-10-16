@@ -16,7 +16,7 @@ echo "========================================================"
 python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
   --simplify_robot_mesh=2 \
-  --num_envs=128 \
+  --num_envs=1024 \
   --update_epochs=8 \
   --num_minibatches=8 \
   --total_timesteps=10_000_000 \
@@ -39,7 +39,7 @@ echo "========================================================"
 python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
   --simplify_robot_mesh=1 \
-  --num_envs=128 \
+  --num_envs=1024 \
   --update_epochs=8 \
   --num_minibatches=8 \
   --total_timesteps=10_000_000 \
@@ -62,7 +62,7 @@ echo "========================================================"
 python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
   --simplify_robot_mesh=0 \
-  --num_envs=128 \
+  --num_envs=1024 \
   --update_epochs=8 \
   --num_minibatches=8 \
   --total_timesteps=10_000_000 \
