@@ -7,6 +7,7 @@ build/
 dist/
 *.egg-info/
 
+wandb/
 # ipython/jupyter notebooks
 # *.ipynb
 **/.ipynb_checkpoints/

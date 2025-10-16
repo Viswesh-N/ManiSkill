@@ -1,4 +1,6 @@
 from copy import deepcopy
+import os
+import tempfile
 
 import numpy as np
 import sapien
@@ -13,10 +15,63 @@ from mani_skill.utils import common, sapien_utils
 from mani_skill.utils.structs.actor import Actor
 
 
+def _get_panda_urdf_path():
+    """Get URDF path based on PANDA_MESH_LEVEL environment variable.
+
+    Levels:
+    - 0: Original meshes (uses default visual/ which contains originals)
+    - 1: Intermediate simplified meshes (visual_intermediate/)
+    - 2: Extreme simplified meshes (visual_extreme/)
+    """
+    mesh_level = int(os.environ.get('PANDA_MESH_LEVEL', '0'))
+
+    print(f"[DEBUG] _get_panda_urdf_path called with PANDA_MESH_LEVEL={mesh_level}")
+
+    # Level 0: use default URDF (points to visual/ which has originals)
+    if mesh_level == 0:
+        print(f"[DEBUG] Using original URDF with default visual/ meshes")
+        return f"{PACKAGE_ASSET_DIR}/robots/panda/panda_v2.urdf"
+
+    # Map simplification levels to mesh directories
+    mesh_dirs = {
+        1: "visual_intermediate",
+        2: "visual_extreme"
+    }
+
+    if mesh_level not in mesh_dirs:
+        # Invalid level, use original
+        print(f"[DEBUG] Invalid level {mesh_level}, defaulting to original")
+        return f"{PACKAGE_ASSET_DIR}/robots/panda/panda_v2.urdf"
+
+    # For levels 1 and 2, create modified URDF in the same directory as original
+    # This preserves relative paths in the URDF
+    original_urdf_path = f"{PACKAGE_ASSET_DIR}/robots/panda/panda_v2.urdf"
+    with open(original_urdf_path, 'r') as f:
+        urdf_content = f.read()
+
+    # Replace ONLY visual mesh paths (not collision paths)
+    mesh_dir = mesh_dirs[mesh_level]
+    print(f"[DEBUG] Replacing 'meshes/visual/' with 'meshes/{mesh_dir}/'")
+    modified_urdf_content = urdf_content.replace(
+        'meshes/visual/',
+        f'meshes/{mesh_dir}/'
+    )
+
+    # Write to a temporary URDF file in the same directory as the original
+    # This ensures relative paths work correctly
+    import time
+    modified_urdf_path = f"{PACKAGE_ASSET_DIR}/robots/panda/panda_v2_level{mesh_level}_{int(time.time())}.urdf"
+    with open(modified_urdf_path, 'w') as f:
+        f.write(modified_urdf_content)
+
+    print(f"[DEBUG] Created modified URDF at: {modified_urdf_path}")
+    return modified_urdf_path
+
+
 @register_agent()
 class Panda(BaseAgent):
     uid = "panda"
-    urdf_path = f"{PACKAGE_ASSET_DIR}/robots/panda/panda_v2.urdf"
+    urdf_path = _get_panda_urdf_path()
     urdf_config = dict(
         _materials=dict(
             gripper=dict(static_friction=2.0, dynamic_friction=2.0, restitution=0.0)

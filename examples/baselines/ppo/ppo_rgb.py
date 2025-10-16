@@ -2,9 +2,26 @@
 from collections import defaultdict
 import os
 import random
+import sys
 import time
 from dataclasses import dataclass
 from typing import Optional
+
+for arg_variant in ['--simplify-robot-mesh', '--simplify_robot_mesh']:
+    if arg_variant in sys.argv:
+        idx = sys.argv.index(arg_variant)
+        if idx + 1 < len(sys.argv):
+            mesh_level_value = sys.argv[idx + 1]
+            os.environ['PANDA_MESH_LEVEL'] = mesh_level_value
+            print(f"[DEBUG] Set PANDA_MESH_LEVEL environment variable to: {mesh_level_value}")
+            break
+    # Also check for --arg=value format
+    for arg in sys.argv:
+        if arg.startswith(arg_variant + '='):
+            mesh_level_value = arg.split('=')[1]
+            os.environ['PANDA_MESH_LEVEL'] = mesh_level_value
+            print(f"[DEBUG] Set PANDA_MESH_LEVEL environment variable to: {mesh_level_value}")
+            break
 
 import gymnasium as gym
 import numpy as np
@@ -54,6 +71,8 @@ class Args:
     # Algorithm specific arguments
     env_id: str = "PickCube-v1"
     """the id of the environment"""
+    simplify_robot_mesh: int = 0
+    """robot mesh simplification level: 0=original, 1=intermediate, 2=extreme"""
     include_state: bool = True
     """whether to include state information in observations"""
     total_timesteps: int = 10000000
@@ -302,6 +321,10 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = args.torch_deterministic
 
     device = torch.device("cuda" if torch.cuda.is_available() and args.cuda else "cpu")
+
+    # Print mesh simplification level
+    mesh_level_names = {0: "original", 1: "intermediate", 2: "extreme"}
+    print(f"Using robot mesh simplification level: {args.simplify_robot_mesh} ({mesh_level_names.get(args.simplify_robot_mesh, 'unknown')})")
 
     # env setup
     env_kwargs = dict(obs_mode="rgb", render_mode=args.render_mode, sim_backend="physx_cuda")

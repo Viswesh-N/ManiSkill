@@ -1,11 +1,21 @@
 #!/bin/bash
-# PPO RGB Training with Decomposed Panda Meshes
-# This will automatically use the decomposed visual meshes we just created!
+# PPO RGB Training with 3-Level Mesh Curriculum
+# Runs training sequentially with: extreme -> intermediate -> original meshes
 
 cd /home/viswesh/grid/curriculum/ManiSkill
 
+echo "========================================================"
+echo "Starting 2-Level Mesh Curriculum Training"
+echo "========================================================"
+echo ""
+
+# Level 1: EXTREME simplification (1.9K per mesh, 32 vertices max)
+echo "========================================================"
+echo "LEVEL 1/3: Training with EXTREME mesh simplification"
+echo "========================================================"
 python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
+  --simplify_robot_mesh=2 \
   --num_envs=128 \
   --update_epochs=8 \
   --num_minibatches=8 \
@@ -13,22 +23,63 @@ python examples/baselines/ppo/ppo_rgb.py \
   --track \
   --wandb_project_name="PhysVizCurriculum" \
   --wandb_group="mesh_decomposition" \
-  --exp_name="pickcube_robot_decomposed" \
+  --exp_name="pickcube_robot_extreme" \
   --capture_video \
   --save_model \
   --eval_freq=10
 
-# Explanation of key flags:
-# --track: Enables wandb logging
-# --wandb_project_name: PhysVizCurriculum (top-level project for physics/visual curriculum)
-# --wandb_group: mesh_decomposition (this group for mesh-based curriculum)
-#                Later you can add "viz_curriculum" group for other visual curriculum experiments
-# --exp_name: pickcube_robot_decomposed (this specific run with decomposed Panda meshes)
-# --capture_video: Save videos during evaluation
-# --save_model: Save model checkpoints
-# --eval_freq: Evaluate every 10 iterations
+# echo ""
+# echo "Level 1 complete! Moving to Level 2..."
+# echo ""
+
+# Level 1: INTERMEDIATE simplification (96K-615K per mesh)
+echo "========================================================"
+echo "LEVEL 1/2: Training with INTERMEDIATE mesh simplification"
+echo "========================================================"
+python examples/baselines/ppo/ppo_rgb.py \
+  --env_id="PickCube-v1" \
+  --simplify_robot_mesh=1 \
+  --num_envs=128 \
+  --update_epochs=8 \
+  --num_minibatches=8 \
+  --total_timesteps=10_000_000 \
+  --track \
+  --wandb_project_name="PhysVizCurriculum" \
+  --wandb_group="mesh_decomposition" \
+  --exp_name="pickcube_robot_intermediate" \
+  --capture_video \
+  --save_model \
+  --eval_freq=10
 
 echo ""
-echo "Training will use DECOMPOSED Panda meshes (79% fewer vertices!)"
+echo "Level 1 complete! Moving to Level 2..."
+echo ""
+
+# Level 2: ORIGINAL meshes (full fidelity)
+echo "========================================================"
+echo "LEVEL 2/2: Training with ORIGINAL meshes (full fidelity)"
+echo "========================================================"
+python examples/baselines/ppo/ppo_rgb.py \
+  --env_id="PickCube-v1" \
+  --simplify_robot_mesh=0 \
+  --num_envs=128 \
+  --update_epochs=8 \
+  --num_minibatches=8 \
+  --total_timesteps=10_000_000 \
+  --track \
+  --wandb_project_name="PhysVizCurriculum" \
+  --wandb_group="mesh_decomposition" \
+  --exp_name="pickcube_robot_original" \
+  --capture_video \
+  --save_model \
+  --eval_freq=10
+
+echo ""
+echo "========================================================"
+echo "All 2 levels complete!"
+echo "========================================================"
 echo "Check wandb for training progress and videos"
+echo "Results available at:"
+echo "  - runs/pickcube_robot_intermediate/"
+echo "  - runs/pickcube_robot_original/"
 
