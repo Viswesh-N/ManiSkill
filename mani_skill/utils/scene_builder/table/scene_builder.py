@@ -1,3 +1,4 @@
+import os
 import os.path as osp
 from pathlib import Path
 from typing import List
@@ -14,14 +15,55 @@ from mani_skill.utils.building.ground import build_ground
 from mani_skill.utils.scene_builder import SceneBuilder
 
 
+def _get_table_mesh_path():
+    """Get table mesh path based on TABLE_MESH_LEVEL environment variable.
+    
+    Levels:
+    - 0: Original mesh (uses default table.glb)
+    - 1: Intermediate simplified mesh (table_intermediate/table.glb)
+    - 2: Extreme simplified mesh (table_extreme/table.glb)
+    """
+    mesh_level = int(os.environ.get('TABLE_MESH_LEVEL', '0'))
+    
+    print(f"[DEBUG] _get_table_mesh_path called with TABLE_MESH_LEVEL={mesh_level}")
+    
+    model_dir = Path(osp.dirname(__file__)) / "assets"
+    
+    # Level 0: use default table mesh
+    if mesh_level == 0:
+        print(f"[DEBUG] Using original table mesh")
+        return str(model_dir / "table.glb")
+    
+    # Map simplification levels to mesh directories
+    mesh_dirs = {
+        1: "table_intermediate",
+        2: "table_extreme"
+    }
+    
+    if mesh_level not in mesh_dirs:
+        # Invalid level, use original
+        print(f"[DEBUG] Invalid level {mesh_level}, defaulting to original")
+        return str(model_dir / "table.glb")
+    
+    # For levels 1 and 2, load from subdirectories
+    mesh_dir = mesh_dirs[mesh_level]
+    table_path = model_dir / mesh_dir / "table.glb"
+    
+    if not table_path.exists():
+        print(f"[WARNING] Table mesh not found at {table_path}, using original")
+        return str(model_dir / "table.glb")
+    
+    print(f"[DEBUG] Using table mesh from: {table_path}")
+    return str(table_path)
+
+
 class TableSceneBuilder(SceneBuilder):
     """A simple scene builder that adds a table to the scene such that the height of the table is at 0, and
     gives reasonable initial poses for robots."""
 
     def build(self):
         builder = self.scene.create_actor_builder()
-        model_dir = Path(osp.dirname(__file__)) / "assets"
-        table_model_file = str(model_dir / "table.glb")
+        table_model_file = _get_table_mesh_path()
         scale = 1.75
 
         table_pose = sapien.Pose(q=euler2quat(0, 0, np.pi / 2))
