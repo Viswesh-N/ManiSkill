@@ -16,44 +16,31 @@ from mani_skill.utils.scene_builder import SceneBuilder
 
 
 def _get_table_mesh_path():
-    """Get table mesh path based on TABLE_MESH_LEVEL environment variable.
+    """Get table mesh path based on SIMPLIFY_TABLE environment variable.
     
-    Levels:
-    - 0: Original mesh (uses default table.glb)
-    - 1: Intermediate simplified mesh (table_intermediate/table.glb)
-    - 2: Extreme simplified mesh (table_extreme/table.glb)
+    If SIMPLIFY_TABLE='1', uses simplified box mesh from table_simplified/table.glb
+    Otherwise uses original table.glb
     """
-    mesh_level = int(os.environ.get('TABLE_MESH_LEVEL', '0'))
+    use_simplified = os.environ.get('SIMPLIFY_TABLE', '0') == '1'
     
-    print(f"[DEBUG] _get_table_mesh_path called with TABLE_MESH_LEVEL={mesh_level}")
+    print(f"[DEBUG] _get_table_mesh_path called with SIMPLIFY_TABLE={use_simplified}")
     
     model_dir = Path(osp.dirname(__file__)) / "assets"
     
-    # Level 0: use default table mesh
-    if mesh_level == 0:
+    # Use original mesh if not simplifying
+    if not use_simplified:
         print(f"[DEBUG] Using original table mesh")
         return str(model_dir / "table.glb")
     
-    # Map simplification levels to mesh directories
-    mesh_dirs = {
-        1: "table_intermediate",
-        2: "table_extreme"
-    }
-    
-    if mesh_level not in mesh_dirs:
-        # Invalid level, use original
-        print(f"[DEBUG] Invalid level {mesh_level}, defaulting to original")
-        return str(model_dir / "table.glb")
-    
-    # For levels 1 and 2, load from subdirectories
-    mesh_dir = mesh_dirs[mesh_level]
-    table_path = model_dir / mesh_dir / "table.glb"
+    # Use simplified mesh
+    table_path = model_dir / "table_simplified" / "table.glb"
     
     if not table_path.exists():
-        print(f"[WARNING] Table mesh not found at {table_path}, using original")
+        print(f"[WARNING] Simplified table mesh not found at {table_path}, using original")
+        print(f"[WARNING] Run 'python decompose_table_meshes.py' to generate simplified mesh")
         return str(model_dir / "table.glb")
     
-    print(f"[DEBUG] Using table mesh from: {table_path}")
+    print(f"[DEBUG] Using simplified table mesh from: {table_path}")
     return str(table_path)
 
 

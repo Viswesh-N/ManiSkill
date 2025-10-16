@@ -23,22 +23,12 @@ for arg_variant in ['--simplify-robot-mesh', '--simplify_robot_mesh']:
             print(f"[DEBUG] Set PANDA_MESH_LEVEL environment variable to: {mesh_level_value}")
             break
 
-# Handle table mesh simplification flag
-for arg_variant in ['--simplify-table-mesh', '--simplify_table_mesh']:
+# Handle table mesh simplification flag (boolean)
+for arg_variant in ['--simplify-table', '--simplify_table']:
     if arg_variant in sys.argv:
-        idx = sys.argv.index(arg_variant)
-        if idx + 1 < len(sys.argv):
-            mesh_level_value = sys.argv[idx + 1]
-            os.environ['TABLE_MESH_LEVEL'] = mesh_level_value
-            print(f"[DEBUG] Set TABLE_MESH_LEVEL environment variable to: {mesh_level_value}")
-            break
-    # Also check for --arg=value format
-    for arg in sys.argv:
-        if arg.startswith(arg_variant + '='):
-            mesh_level_value = arg.split('=')[1]
-            os.environ['TABLE_MESH_LEVEL'] = mesh_level_value
-            print(f"[DEBUG] Set TABLE_MESH_LEVEL environment variable to: {mesh_level_value}")
-            break
+        os.environ['SIMPLIFY_TABLE'] = '1'
+        print(f"[DEBUG] Set SIMPLIFY_TABLE environment variable to: 1")
+        break
 
 import gymnasium as gym
 import numpy as np
@@ -90,8 +80,8 @@ class Args:
     """the id of the environment"""
     simplify_robot_mesh: int = 0
     """robot mesh simplification level: 0=original, 1=intermediate, 2=extreme"""
-    simplify_table_mesh: int = 0
-    """table mesh simplification level: 0=original, 1=intermediate, 2=extreme"""
+    simplify_table: bool = False
+    """whether to use simplified box table mesh"""
     include_state: bool = True
     """whether to include state information in observations"""
     total_timesteps: int = 10000000
@@ -344,7 +334,7 @@ if __name__ == "__main__":
     # Print mesh simplification level
     mesh_level_names = {0: "original", 1: "intermediate", 2: "extreme"}
     print(f"Using robot mesh simplification level: {args.simplify_robot_mesh} ({mesh_level_names.get(args.simplify_robot_mesh, 'unknown')})")
-    print(f"Using table mesh simplification level: {args.simplify_table_mesh} ({mesh_level_names.get(args.simplify_table_mesh, 'unknown')})")
+    print(f"Using simplified table mesh: {args.simplify_table}")
 
     # env setup
     env_kwargs = dict(obs_mode="rgb", render_mode=args.render_mode, sim_backend="physx_cuda")
