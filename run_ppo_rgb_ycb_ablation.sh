@@ -5,7 +5,8 @@
 
 set -e  # Exit on error
 
-cd /home/viswesh/grid/curriculum/ManiSkill
+# Move to the ManiSkill repo root (directory of this script)
+cd "$(dirname "$0")"
 
 echo "========================================================"
 echo "YCB Ablation Study Setup"
