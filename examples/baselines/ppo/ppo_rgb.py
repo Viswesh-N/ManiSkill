@@ -45,6 +45,7 @@ import mani_skill.envs
 from mani_skill.utils import gym_utils
 from mani_skill.utils.wrappers.flatten import FlattenActionSpaceWrapper, FlattenRGBDObservationWrapper
 from mani_skill.utils.wrappers.record import RecordEpisode
+from mani_skill.utils.wrappers.cached_reset import CachedResetWrapper
 from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv
 
 @dataclass
@@ -351,6 +352,11 @@ if __name__ == "__main__":
     if isinstance(envs.action_space, gym.spaces.Dict):
         envs = FlattenActionSpaceWrapper(envs)
         eval_envs = FlattenActionSpaceWrapper(eval_envs)
+
+    # Apply CachedResetWrapper before RecordEpisode for faster resets
+    envs = CachedResetWrapper(envs)
+    eval_envs = CachedResetWrapper(eval_envs)
+
     if args.capture_video:
         eval_output_dir = f"runs/{run_name}/videos"
         if args.evaluate:
