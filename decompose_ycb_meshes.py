@@ -150,6 +150,21 @@ def process_ycb_meshes(backup=True):
             print(f"  Saving simplified mesh to {simplified_obj_path}...")
             decomposed_mesh.export(simplified_obj_path)
 
+            # Add material references to the simplified OBJ file to use same textures
+            # Read the saved file and prepend material references
+            with open(simplified_obj_path, 'r') as f:
+                content = f.read()
+
+            # Write back with material references at the top (after the comment line)
+            with open(simplified_obj_path, 'w') as f:
+                lines = content.split('\n')
+                f.write(lines[0] + '\n')  # Keep the trimesh comment
+                f.write('mtllib material_0.mtl\n')
+                f.write('usemtl material_0\n')
+                f.write('\n'.join(lines[1:]))
+
+            print(f"  Added material references for textures")
+
             print(f"  ✓ Successfully processed {model_id}")
             successful += 1
 
@@ -174,6 +189,13 @@ def process_ycb_meshes(backup=True):
         print("Original meshes backed up to 'original_backup/' in each model directory")
 
 if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Decompose YCB object visual meshes using CoACD")
+    parser.add_argument("--auto-confirm", action="store_true",
+                        help="Skip confirmation prompt (for automated scripts)")
+    args = parser.parse_args()
+
     print("Starting YCB object mesh decomposition with CoACD")
     print("Using EXTREME simplification settings (same as Panda robot level 2)")
     print()
@@ -188,9 +210,13 @@ if __name__ == "__main__":
     print("  - decimate: True")
     print()
 
-    response = input("This will process all YCB models. Continue? (y/n): ")
-    if response.lower() != 'y':
-        print("Aborted.")
-        sys.exit(0)
+    if not args.auto_confirm:
+        response = input("This will process all YCB models. Continue? (y/n): ")
+        if response.lower() != 'y':
+            print("Aborted.")
+            sys.exit(0)
+    else:
+        print("Auto-confirm enabled, proceeding with processing...")
+        print()
 
     process_ycb_meshes(backup=True)

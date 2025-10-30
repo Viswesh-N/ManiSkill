@@ -18,6 +18,10 @@ def _load_ycb_dataset():
 def get_ycb_builder(
     scene: ManiSkillScene, id: str, add_collision: bool = True, add_visual: bool = True
 ):
+    # Log that function was called
+    with open('/tmp/ycb_mesh_loading.log', 'a') as f:
+        f.write(f"=== get_ycb_builder CALLED for id={id}, add_visual={add_visual} ===\n")
+
     if "YCB" not in YCB_DATASET:
         _load_ycb_dataset()
     model_db = YCB_DATASET["model_data"]
@@ -43,16 +47,24 @@ def get_ycb_builder(
         # Check if we should use simplified visual mesh
         use_simplified = os.environ.get('YCB_SIMPLIFY_VISUAL', '0') == '1'
 
+        # Write to a log file for debugging
+        with open('/tmp/ycb_mesh_loading.log', 'a') as f:
+            f.write(f"get_ycb_builder called for {id}, use_simplified={use_simplified}\n")
+
         if use_simplified:
             simplified_file = model_dir / "textured_simplified.obj"
             if simplified_file.exists():
                 visual_file = str(simplified_file)
-                print(f"[DEBUG] Using simplified YCB visual mesh for {id}")
+                with open('/tmp/ycb_mesh_loading.log', 'a') as f:
+                    f.write(f"  -> LOADING SIMPLIFIED: {visual_file}\n")
             else:
-                print(f"[WARNING] Simplified mesh not found for {id}, using original")
+                with open('/tmp/ycb_mesh_loading.log', 'a') as f:
+                    f.write(f"  -> WARNING: Simplified not found, using original\n")
                 visual_file = str(model_dir / "textured.obj")
         else:
             visual_file = str(model_dir / "textured.obj")
+            with open('/tmp/ycb_mesh_loading.log', 'a') as f:
+                f.write(f"  -> LOADING ORIGINAL: {visual_file}\n")
 
         builder.add_visual_from_file(filename=visual_file, scale=[scale] * 3)
 
