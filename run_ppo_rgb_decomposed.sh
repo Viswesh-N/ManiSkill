@@ -24,7 +24,7 @@ python examples/baselines/ppo/ppo_rgb.py \
   --track \
   --wandb_project_name="PhysVizCurriculum" \
   --wandb_group="mesh_decomposition" \
-  --exp_name="pickcube_robot_extreme_table_extreme" \
+  --exp_name="pickcube_robot_extreme_table_extreme_cache" \
   --capture_video \
   --save_model \
   --eval_freq=25
@@ -48,7 +48,7 @@ python examples/baselines/ppo/ppo_rgb.py \
   --track \
   --wandb_project_name="PhysVizCurriculum" \
   --wandb_group="mesh_decomposition" \
-  --exp_name="pickcube_robot_intermediate_table_intermediate" \
+  --exp_name="pickcube_robot_intermediate_table_intermediate_cache" \
   --capture_video \
   --save_model \
   --eval_freq=25
@@ -72,7 +72,7 @@ python examples/baselines/ppo/ppo_rgb.py \
   --track \
   --wandb_project_name="PhysVizCurriculum" \
   --wandb_group="mesh_decomposition" \
-  --exp_name="pickcube_robot_original_table_original" \
+  --exp_name="pickcube_robot_original_table_original_cache" \
   --capture_video \
   --save_model \
   --eval_freq=25

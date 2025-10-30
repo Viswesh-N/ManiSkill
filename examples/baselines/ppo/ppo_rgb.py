@@ -345,6 +345,10 @@ if __name__ == "__main__":
     eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs, reconfiguration_freq=args.eval_reconfiguration_freq, **env_kwargs)
     envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1, reconfiguration_freq=args.reconfiguration_freq, **env_kwargs)
 
+    # Apply CachedResetWrapper on raw envs BEFORE any observation/action flattening
+    envs = CachedResetWrapper(envs)
+    eval_envs = CachedResetWrapper(eval_envs)
+
     # rgbd obs mode returns a dict of data, we flatten it so there is just a rgbd key and state key
     envs = FlattenRGBDObservationWrapper(envs, rgb=True, depth=False, state=args.include_state)
     eval_envs = FlattenRGBDObservationWrapper(eval_envs, rgb=True, depth=False, state=args.include_state)
@@ -352,10 +356,6 @@ if __name__ == "__main__":
     if isinstance(envs.action_space, gym.spaces.Dict):
         envs = FlattenActionSpaceWrapper(envs)
         eval_envs = FlattenActionSpaceWrapper(eval_envs)
-
-    # Apply CachedResetWrapper before RecordEpisode for faster resets
-    envs = CachedResetWrapper(envs)
-    eval_envs = CachedResetWrapper(eval_envs)
 
     if args.capture_video:
         eval_output_dir = f"runs/{run_name}/videos"
