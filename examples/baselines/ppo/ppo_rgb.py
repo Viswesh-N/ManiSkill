@@ -345,9 +345,13 @@ if __name__ == "__main__":
     eval_envs = gym.make(args.env_id, num_envs=args.num_eval_envs, reconfiguration_freq=args.eval_reconfiguration_freq, **env_kwargs)
     envs = gym.make(args.env_id, num_envs=args.num_envs if not args.evaluate else 1, reconfiguration_freq=args.reconfiguration_freq, **env_kwargs)
 
-    # Apply CachedResetWrapper on raw envs BEFORE any observation/action flattening
+    # Apply CachedResetWrapper on raw envs; disable cached obs to let wrappers compute obs
     envs = CachedResetWrapper(envs)
     eval_envs = CachedResetWrapper(eval_envs)
+    if hasattr(envs, "_cached_resets_obs_buffer"):
+        envs._cached_resets_obs_buffer = None
+    if hasattr(eval_envs, "_cached_resets_obs_buffer"):
+        eval_envs._cached_resets_obs_buffer = None
 
     # rgbd obs mode returns a dict of data, we flatten it so there is just a rgbd key and state key
     envs = FlattenRGBDObservationWrapper(envs, rgb=True, depth=False, state=args.include_state)
