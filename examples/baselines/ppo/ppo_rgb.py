@@ -31,6 +31,13 @@ for arg_variant in ['--simplify-table', '--simplify_table']:
         print(f"[DEBUG] Set SIMPLIFY_TABLE environment variable to: 1")
         break
 
+# Handle YCB object visual mesh simplification flag (boolean)
+for arg_variant in ['--simplify-ycb-visual', '--simplify_ycb_visual']:
+    if arg_variant in sys.argv:
+        os.environ['YCB_SIMPLIFY_VISUAL'] = '1'
+        print(f"[DEBUG] Set YCB_SIMPLIFY_VISUAL environment variable to: 1")
+        break
+
 import gymnasium as gym
 import numpy as np
 import torch
@@ -45,7 +52,7 @@ import mani_skill.envs
 from mani_skill.utils import gym_utils
 from mani_skill.utils.wrappers.flatten import FlattenActionSpaceWrapper, FlattenRGBDObservationWrapper
 from mani_skill.utils.wrappers.record import RecordEpisode
-from mani_skill.utils.wrappers.cached_reset import CachedResetWrapper
+from mani_skill.utils.wrappers import CachedResetWrapper
 from mani_skill.vector.wrappers.gymnasium import ManiSkillVectorEnv
 
 @dataclass
@@ -84,6 +91,8 @@ class Args:
     """robot mesh simplification level: 0=original, 1=intermediate, 2=extreme"""
     simplify_table: bool = False
     """whether to use simplified box table mesh"""
+    simplify_ycb_visual: bool = False
+    """whether to use simplified YCB object visual meshes"""
     include_state: bool = True
     """whether to include state information in observations"""
     total_timesteps: int = 10000000
@@ -337,6 +346,7 @@ if __name__ == "__main__":
     mesh_level_names = {0: "original", 1: "intermediate", 2: "extreme"}
     print(f"Using robot mesh simplification level: {args.simplify_robot_mesh} ({mesh_level_names.get(args.simplify_robot_mesh, 'unknown')})")
     print(f"Using simplified table mesh: {args.simplify_table}")
+    print(f"Using simplified YCB visual meshes: {args.simplify_ycb_visual}")
 
     # env setup
     env_kwargs = dict(obs_mode="rgb", render_mode=args.render_mode, sim_backend="physx_cuda")
@@ -360,6 +370,10 @@ if __name__ == "__main__":
     if isinstance(envs.action_space, gym.spaces.Dict):
         envs = FlattenActionSpaceWrapper(envs)
         eval_envs = FlattenActionSpaceWrapper(eval_envs)
+
+    # TODO: CachedResetWrapper can be added here for faster resets, but needs testing
+    # envs = CachedResetWrapper(envs)
+    # eval_envs = CachedResetWrapper(eval_envs)
 
     if args.capture_video:
         eval_output_dir = f"runs/{run_name}/videos"

@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 from mani_skill import ASSET_DIR
 from mani_skill.envs.scene import ManiSkillScene
 from mani_skill.utils.io_utils import load_json
@@ -37,7 +40,20 @@ def get_ycb_builder(
             density=density,
         )
     if add_visual:
-        visual_file = str(model_dir / "textured.obj")
+        # Check if we should use simplified visual mesh
+        use_simplified = os.environ.get('YCB_SIMPLIFY_VISUAL', '0') == '1'
+
+        if use_simplified:
+            simplified_file = model_dir / "textured_simplified.obj"
+            if simplified_file.exists():
+                visual_file = str(simplified_file)
+                print(f"[DEBUG] Using simplified YCB visual mesh for {id}")
+            else:
+                print(f"[WARNING] Simplified mesh not found for {id}, using original")
+                visual_file = str(model_dir / "textured.obj")
+        else:
+            visual_file = str(model_dir / "textured.obj")
+
         builder.add_visual_from_file(filename=visual_file, scale=[scale] * 3)
 
     return builder
