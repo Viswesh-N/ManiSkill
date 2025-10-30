@@ -6,6 +6,7 @@ import sys
 import time
 from dataclasses import dataclass
 from typing import Optional
+from pathlib import Path
 
 for arg_variant in ['--simplify-robot-mesh', '--simplify_robot_mesh']:
     if arg_variant in sys.argv:
@@ -388,6 +389,12 @@ if __name__ == "__main__":
             "|param|value|\n|-|-|\n%s" % ("\n".join([f"|{key}|{value}|" for key, value in vars(args).items()])),
         )
         logger = Logger(log_wandb=args.track, tensorboard=writer)
+        # Track uploaded videos to avoid duplicate uploads
+        uploaded_videos = set()
+        # Train videos directory if enabled
+        train_videos_dir = (
+            f"runs/{run_name}/train_videos" if args.capture_video and args.save_train_video_freq is not None else None
+        )
     else:
         print("Running evaluation")
 
@@ -451,6 +458,21 @@ if __name__ == "__main__":
             model_path = f"runs/{run_name}/ckpt_{iteration}.pt"
             torch.save(agent.state_dict(), model_path)
             print(f"model saved to {model_path}")
+        # Log any newly saved videos to Weights & Biases
+        if args.track and args.capture_video and not args.evaluate:
+            def _log_new_videos(dir_path: str, label: str):
+                p = Path(dir_path)
+                if p.exists():
+                    for mp4_path in sorted(p.glob("*.mp4")):
+                        spath = str(mp4_path)
+                        if spath not in uploaded_videos:
+                            wandb.log({f"{label}/video": wandb.Video(spath, fps=30, format="mp4")}, step=global_step)
+                            uploaded_videos.add(spath)
+            # Eval videos
+            _log_new_videos(eval_output_dir, "eval")
+            # Train videos (if enabled)
+            if 'train_videos_dir' in locals() and train_videos_dir is not None:
+                _log_new_videos(train_videos_dir, "train")
         # Annealing the rate if instructed to do so.
         if args.anneal_lr:
             frac = 1.0 - (iteration - 1.0) / args.num_iterations
