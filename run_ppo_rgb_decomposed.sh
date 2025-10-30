@@ -17,9 +17,9 @@ python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
   --simplify_robot_mesh=2 \
   --simplify_table \
-  --num_envs=1024 \
-  --update_epochs=8 \
-  --num_minibatches=8 \
+  --num_envs=512 \
+  --update_epochs=4 \
+  --num_minibatches=32 \
   --total_timesteps=10_000_000 \
   --track \
   --wandb_project_name="PhysVizCurriculum" \
@@ -27,7 +27,7 @@ python examples/baselines/ppo/ppo_rgb.py \
   --exp_name="pickcube_robot_extreme_table_extreme" \
   --capture_video \
   --save_model \
-  --eval_freq=10
+  --eval_freq=25
 
 # echo ""
 # echo "Level 1 complete! Moving to Level 2..."
@@ -41,9 +41,9 @@ python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
   --simplify_robot_mesh=1 \
   --simplify_table \
-  --num_envs=1024 \
-  --update_epochs=8 \
-  --num_minibatches=8 \
+  --num_envs=512 \
+  --update_epochs=4 \
+  --num_minibatches=32 \
   --total_timesteps=10_000_000 \
   --track \
   --wandb_project_name="PhysVizCurriculum" \
@@ -51,7 +51,7 @@ python examples/baselines/ppo/ppo_rgb.py \
   --exp_name="pickcube_robot_intermediate_table_intermediate" \
   --capture_video \
   --save_model \
-  --eval_freq=10
+  --eval_freq=25
 
 echo ""
 echo "Level 1 complete! Moving to Level 2..."
@@ -65,9 +65,9 @@ python examples/baselines/ppo/ppo_rgb.py \
   --env_id="PickCube-v1" \
   --simplify_robot_mesh=0 \
   --simplify_table \
-  --num_envs=1024 \
-  --update_epochs=8 \
-  --num_minibatches=8 \
+  --num_envs=512 \
+  --update_epochs=4 \
+  --num_minibatches=32 \
   --total_timesteps=10_000_000 \
   --track \
   --wandb_project_name="PhysVizCurriculum" \
@@ -75,7 +75,7 @@ python examples/baselines/ppo/ppo_rgb.py \
   --exp_name="pickcube_robot_original_table_original" \
   --capture_video \
   --save_model \
-  --eval_freq=10
+  --eval_freq=25
 
 
 
